@@ -13,6 +13,8 @@ sender ◀─ host event ── SQLite mailbox ◀──── result ───�
 
 Python 3.10+, standard-library runtime, MIT license. Version 0.3.0 is an alpha designed for Windows, macOS and Linux. A configured host integration is required for automatic wake-up; supporting MCP tools alone does not establish that a client can turn an event into an Agent turn.
 
+**Windows desktop status:** automatic messaging between the existing Codex desktop and Claude Code desktop sessions is **not yet verified or available as a one-command setup**. The passing OS tests cover the middleware and fake host callbacks. Installing this package or registering a role does not connect those desktop sessions. Read-only installation discovery is available in `scripts/windows-desktop-diagnostics.ps1`; it does not send messages or prove wake-up.
+
 ## Install / 安装
 
 Install from [GitHub](https://github.com/zxc972/local-ai-relay) (requires Git), or download the source and install from its directory:

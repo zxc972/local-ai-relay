@@ -1,0 +1,30 @@
+name: Windows desktop diagnostics
+on:
+  push:
+    paths:
+      - scripts/windows-desktop-diagnostics.ps1
+      - .github/workflows/windows-desktop-diagnostics.yml
+  pull_request:
+    paths:
+      - scripts/windows-desktop-diagnostics.ps1
+      - .github/workflows/windows-desktop-diagnostics.yml
+permissions:
+  contents: read
+jobs:
+  diagnostics:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse and run under Windows PowerShell 5.1 (no desktop clients)
+        shell: powershell
+        run: |
+          $tokens = $null
+          $errors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile("$PWD/scripts/windows-desktop-diagnostics.ps1", [ref]$tokens, [ref]$errors)
+          if ($errors.Count) { throw ($errors | Out-String) }
+          $reportPath = Join-Path $env:RUNNER_TEMP 'airelay-desktop.json'
+          & ./scripts/windows-desktop-diagnostics.ps1 -ReportPath $reportPath
+          $report = Get-Content -Raw $reportPath | ConvertFrom-Json
+          if ($report.schema -ne 'airelay.windows-desktop-diagnostics.v1') { throw 'Invalid report' }
+          if ($report.messages_sent -ne 0 -or $report.live_wake_verified -ne $false -or $report.claude_desktop_channel_verified -ne $false) { throw 'False delivery claim' }
+          if (@($report.codex).Count -ne 0) { throw 'Expected a clean runner without Codex; review before probing installed tools' }
