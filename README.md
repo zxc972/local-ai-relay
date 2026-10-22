@@ -169,7 +169,7 @@ python -m build
 
 Node 22.13+ is needed only for the Pi extension contract test. Core runtime has no Node dependency. Tests use temporary databases/fake hosts with no model calls. They cover idle silence, both directions, role restrictions, duplicate/restart handling, failure, UTF-8 paths, and fresh-wheel installation outside the checkout.
 
-GitHub Actions is configured for Windows/macOS/Linux and Python 3.10/3.12/3.13. A workflow file or local macOS test does not prove Windows/Linux CI passed. Protocol tests do not establish real host consent or live model execution. See the [validation snapshot](docs/VALIDATION.md).
+All nine Windows/macOS/Linux × Python 3.10/3.12/3.13 combinations [passed GitHub Actions](https://github.com/zxc972/local-ai-relay/actions/runs/39779976068), including fresh-wheel installation and background notifications for both roles. Protocol tests do not establish real host consent or live model execution. See the [validation snapshot](docs/VALIDATION.md).
 
 The older task console and `--legacy-tasks` transport remain compatibility interfaces. The default is the event-driven mailbox; legacy Codex heartbeat reception is disabled. Local messages, credentials and generated client configuration are excluded from Git/releases. See [CONTRIBUTING](CONTRIBUTING.md), [adapter contract](docs/ADAPTERS.md), and [release checklist](docs/RELEASING.md).
 
