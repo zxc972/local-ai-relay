@@ -81,7 +81,7 @@ These register roles and start detached Python listeners. They send no tasks and
 
 ### Pi
 
-Run `airelay extension-path pi` to locate the installed extension. Load `extensions/pi-relay.ts` using Pi's extension setup, or start Pi with `--extension ./extensions/pi-relay.ts`. Then run in the two Pi sessions respectively:
+Run `airelay extension-path pi` to locate the installed extension, then start Pi with `pi --extension "ABSOLUTE_PATH_FROM_OUTPUT"` (replace the placeholder with the returned path). The relative path `./extensions/pi-relay.ts` works only from a source checkout. Then run in the two Pi sessions respectively:
 
 ```text
 /relay-connect work sender

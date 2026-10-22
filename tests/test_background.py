@@ -46,7 +46,22 @@ class BackgroundTests(unittest.TestCase):
             self.assertFalse(thread.is_alive())
             self.assertFalse(errors, errors)
         self.wait(lambda: not any(self.background.status(r)["worker_active"] for r in ("sender", "receiver")))
-        self.temp.cleanup()
+        self.cleanup_tempdir()
+
+    def cleanup_tempdir(self, timeout=5):
+        # A detached worker clears its SQLite lease before Python finishes
+        # shutting down and closes stdout. Windows keeps its log undeletable
+        # during that brief interval; persistent handles must still fail tests.
+        deadline = time.monotonic() + timeout
+        while True:
+            try:
+                self.temp.cleanup()
+                return
+            except PermissionError as error:
+                remaining = deadline - time.monotonic()
+                if getattr(error, "winerror", None) != 32 or remaining <= 0:
+                    raise
+                time.sleep(min(.05, remaining))
 
     def wait(self, condition, timeout=5):
         deadline = time.monotonic() + timeout
@@ -177,9 +192,20 @@ class BackgroundTests(unittest.TestCase):
         self.background.start("receiver")
         message = self.connection.send("sender", "task")["message_id"]
         self.wait(lambda: bool(self.background.status("receiver")["needs_attention"]))
-        self.assertEqual(len(self.recorded(path)), 1)
-        time.sleep(.4)
-        self.assertEqual(len(self.recorded(path)), 1)
+        notice = self.notices("receiver")
+        self.assertEqual(len(notice), 1)
+        self.assertEqual(notice[0]["state"], "needs_attention")
+        self.assertEqual(notice[0]["attempt"], 1)
+        self.assertIn("超时", notice[0]["error"])
+        # A deadline includes interpreter startup. On a loaded Windows runner
+        # it may expire before the hook records receipt; both zero and one
+        # receipt are valid uncertain outcomes. The durable attempt counter
+        # proves no hidden relaunch even if every child would time out early.
+        receipts_after_timeout = self.recorded(path)
+        self.assertLessEqual(len(receipts_after_timeout), 1)
+        time.sleep(.8)  # More than two watcher ticks; no implicit retry.
+        self.assertEqual(self.recorded(path), receipts_after_timeout)
+        self.assertEqual(self.notices("receiver"), notice)
         self.assertEqual(self.state(message), "queued")
 
     def test_crashed_attempt_never_redelivers_and_stop_prevents_new_worker_race(self):
@@ -279,6 +305,24 @@ class BackgroundTests(unittest.TestCase):
         self.assertFalse(status["worker_active"])
         self.assertEqual(status["needs_attention"][0]["message_id"], message)
         self.assertEqual(self.state(message), "queued")
+
+    def test_cleanup_retries_transient_sharing_violation_but_reports_persistent_errors(self):
+        sharing = PermissionError("worker still closing its log")
+        sharing.winerror = 32
+        with patch.object(self.temp, "cleanup", side_effect=[sharing, None]) as cleanup:
+            self.cleanup_tempdir()
+            self.assertEqual(cleanup.call_count, 2)
+        with patch.object(self.temp, "cleanup", side_effect=sharing) as cleanup:
+            with self.assertRaises(PermissionError) as caught:
+                self.cleanup_tempdir(timeout=0)
+            self.assertIs(caught.exception, sharing)
+            cleanup.assert_called_once()
+        denied = PermissionError("unrelated permission error")
+        with patch.object(self.temp, "cleanup", side_effect=denied) as cleanup:
+            with self.assertRaises(PermissionError) as caught:
+                self.cleanup_tempdir()
+            self.assertIs(caught.exception, denied)
+            cleanup.assert_called_once()
 
 
 if __name__ == "__main__":
