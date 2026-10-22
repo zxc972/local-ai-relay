@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "local-ai-relay"
+version = "0.3.0"
+description = "Local sender/receiver messaging and event-driven adapters for AI agents"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
+authors = [{name = "Local AI Relay contributors"}]
+keywords = ["agents", "mcp", "messaging", "local-first"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/zxc972/local-ai-relay"
+Issues = "https://github.com/zxc972/local-ai-relay/issues"
+Documentation = "https://github.com/zxc972/local-ai-relay#readme"
+
+[project.scripts]
+airelay = "local_ai_relay.cli:main"
+
+[tool.setuptools]
+packages = ["local_ai_relay"]
+package-dir = {local_ai_relay = "."}
+include-package-data = false
+
+[tool.setuptools.package-data]
+local_ai_relay = ["static/*", "bin/airelay", "extensions/*.ts", "examples/*.py", "docs/*.md"]

@@ -1,0 +1,13 @@
+.relay/
+__pycache__/
+*.pyc
+.coverage
+build/
+dist/
+*.egg-info/
+.venv/
+.mcp.json
+.cursor/
+*.log
+.DS_Store
+preview*.png
