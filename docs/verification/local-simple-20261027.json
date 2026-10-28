@@ -1,0 +1,27 @@
+{
+  "before": {
+    "tool_count": 13,
+    "tool_schema_bytes": 11073
+  },
+  "after": {
+    "tool_count": 9,
+    "tool_schema_bytes": 8101
+  },
+  "schema_reduction_percent": 26.8,
+  "measurement": "UTF-8 bytes of compact JSON tool definitions; not model tokens or billing",
+  "python_full_suite": {
+    "tests": 224,
+    "passed": 223,
+    "failed": 1,
+    "failure": "new test compared /var and /private/var as different paths"
+  },
+  "after_fix_release_retest": {
+    "tests": 5,
+    "passed": 5
+  },
+  "javascript": {
+    "tests": 25,
+    "passed": 25
+  },
+  "real_native_agent_e2e": false
+}

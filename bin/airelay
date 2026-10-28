@@ -11,7 +11,7 @@ from relay import dump, main
 if __name__ == "__main__":
     try:
         if len(sys.argv) == 1:
-            main(["pair", "work"])
+            main(["room", "--help"])
         else:
             main()
     except (RelayError, OSError, ValueError) as error:

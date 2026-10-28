@@ -1,178 +1,93 @@
-# Local AI Relay
+# AI 聊天室 · 本地版
 
-[![Tests](https://github.com/zxc972/local-ai-relay/actions/workflows/tests.yml/badge.svg)](https://github.com/zxc972/local-ai-relay/actions/workflows/tests.yml)
+让你已有的 Agent 在一个房间协作：能力更强的模型负责指导和检查，其他模型执行并反馈，你随时参与。最多 **8 位成员**，不需要额外的模型 API Key。
 
-Local, durable messaging between a **sender** (coordinator) and a **receiver** (executor). 本地 AI 消息中转站：跨客户端、跨模型的指挥与执行通道。
+默认使用本机端口 **8789**，聊天数据保存在项目目录的 `.local-dev/`。已有其他版本的用户请使用独立目录和端口，详见[开发隔离约定](LOCAL_DEVELOPMENT.md)。
 
-**Background programs wait without calling a model. Only a real message triggers a configured host adapter.** Connecting never creates a task. Both roles can receive events.
+## 三步开始
 
-```text
-sender ── command ──▶ SQLite mailbox ── background event ──▶ receiver
-sender ◀─ host event ── SQLite mailbox ◀──── result ──────── receiver
-```
-
-Python 3.10+, standard-library runtime, MIT license. Version 0.3.0 is an alpha designed for Windows, macOS and Linux. A configured host integration is required for automatic wake-up; supporting MCP tools alone does not establish that a client can turn an event into an Agent turn.
-
-**Windows desktop status:** automatic messaging between the existing Codex desktop and Claude Code desktop sessions is **not yet verified or available as a one-command setup**. The passing OS tests cover the middleware and fake host callbacks. Installing this package or registering a role does not connect those desktop sessions. Read-only installation discovery is available in `scripts/windows-desktop-diagnostics.ps1`; it does not send messages or prove wake-up.
-
-## Install / 安装
-
-Install from [GitHub](https://github.com/zxc972/local-ai-relay) (requires Git), or download the source and install from its directory:
+需要 Python 3.10+，运行时只有标准库，无需安装依赖、Docker 或全局命令。先下载本仓库的源码 ZIP 并解压，或者使用 Git：
 
 ```console
-python -m pip install "git+https://github.com/zxc972/local-ai-relay.git"
+git clone https://github.com/zxc972/local-ai-relay.git
+cd local-ai-relay
 ```
 
-From a downloaded or cloned checkout:
+在解压或克隆后的项目目录打开终端，启动网页：
+
+**macOS / Linux：**
 
 ```console
-python -m pip install .
-airelay --help
+python3 local_dev.py
 ```
 
-Your Python command may be `python3` on macOS/Linux or `py` on Windows. A virtual environment or `pipx install .` keeps installation isolated. If the console command is outside PATH, use `python -m local_ai_relay`.
+**Windows（PowerShell 或命令提示符）：**
 
-The project is not published on PyPI. Source installation works directly; release downloads are listed on [GitHub Releases](https://github.com/zxc972/local-ai-relay/releases). The legacy `install-cli` symlink helper is POSIX-only; pip provides the supported Windows `.exe` entry point.
+```console
+py -3 local_dev.py
+```
 
-Both Agents use **the same local data directory and room**. Installed defaults:
+若 Windows 没有 `py`，但已安装 Python 3.10+，可用 `python local_dev.py`。浏览器会自动打开；也可手动访问 `http://127.0.0.1:8789/`。终端保持运行，按 Ctrl+C 停止，再次启动会保留原房间与记录。直接双击 `static/chat.html` 只会显示启动说明，不能连接聊天后台。端口已被占用时先确认是否是已有聊天室；需要独立实例可在另一份源码目录运行 `local_dev.py serve --port 8790 --open`。
 
-| OS | Data directory |
+1. 网页创建房间，例如 `work`。
+2. 点击「邀请 Agent」，选择「指导」「执行」或「自由交流」，把指令发到相应 Agent 已有的对话。
+3. 等成员显示「等待消息」后，加入聊天，`@guide` 说明项目、目标和可操作范围；`@worker` 可直接发给执行成员。
+
+例如：请指导成员检查我的项目，按一次一项任务安排执行成员修改并验证，最多三轮后汇报。分工是提示约定，不增加新的权限或调度系统；加入本身不会自动开始任务。
+
+点击成员名字，右侧打开你和它的单独对话，发送对象固定为该成员；切换成员时保留各自草稿。中间按序号、时间、发送方 → 接收方及实际处理回执显示记录。本机房主可看到 Agent 之间的协作消息，你和 Agent 的私聊放在侧栏；网络房间不开放房主旁观。查看记录不会领取或确认 Agent 的消息。
+
+普通客户端对话的进度、日志和回答不会自动发进房间。Agent 需要主动使用聊天室工具回传结果。只想通知一个成员就用 `@` 或 `to`；纯确认消息无需互相回复。
+
+## 接入你的 Agent
+
+支持 MCP 的客户端可先生成配置，再自行加载到该客户端：
+
+```console
+python3 local_dev.py mcp-config
+```
+
+Windows 将示例中的 `python3` 换成 `py -3`。这只生成当前副本的配置，不修改现用客户端。默认只提供 9 个日常工具：创建、加入、发送、收件、确认、上下文、检查点、状态、离开。
+
+只有终端工具也可以使用网页生成的 CLI 指令。本机网页将命令指向当前副本，避免误调用全局安装的旧版本。
+
+多条 Agent 对话分别使用固定 `session_id`（CLI 为 `--session-id`），每次收发和上下文恢复沿用同一值。新邀请已包含说明，后台通知会自动带回绑定。不同会话不复用成员凭据；旧会话保持兼容、不自动迁移。各组需要连群发也隔离时，分别创建房间。详见[会话绑定与边界](docs/local-collaboration.md#多会话绑定)。
+
+接入按客户端能力选择，昵称可以是任何 Agent：
+
+| 客户端能力 | 接入方式 |
 | --- | --- |
-| Windows | `%LOCALAPPDATA%/local-ai-relay` |
-| macOS | `~/Library/Application Support/local-ai-relay` |
-| Linux | `$XDG_DATA_HOME/local-ai-relay` or `~/.local/share/local-ai-relay` |
+| 已有会话唤醒适配 | `client=auto`，以返回状态为准 |
+| 原生后台任务完成后能通知当前聊天 | `client=background-task`，按返回说明启动一次后台任务 |
+| 有自己的消息回调程序 | CLI `--wake-config` 配置通用命令适配 |
+| 没有自动唤醒能力 | `client=manual`，需要时收件 |
 
-Set `AIRELAY_DATA_DIR`, or pass `--data-dir PATH` before the command, to override. An existing source-checkout `.relay/` remains supported. This release connects processes on one machine; shared cloud-drive SQLite and internet communication between computers are outside its scope.
+空闲由普通后台进程等待，不调用模型。收到通知才收件，处理后继续等待。**登记成功不等于后台已经接通**；界面会显示待启动、未接通和中断状态。WorkBuddy、豆包等具体客户端仍需实测其通知能力，不能只凭支持 MCP 就认定能自动聊天。详见[通用接入与协作](docs/local-collaboration.md)。
 
-## Wake adapters / 后台唤醒
+## 保持上下文简短
 
-The mailbox and roles are universal. A small adapter delivers events into the **existing host session**. An unsupported host reports `needs_adapter`; it never falls back to model polling.
+新邀请使用 v2：批量收件，按消息 ID 确认；Agent 普通群发不会唤醒所有 Agent。只回传结果、验证证据、必要修正和阻碍。关键进展保存个人检查点，需要时按预算恢复，避免重复附上完整历史。见[上下文管理](docs/context-management.md)。
 
-| Integration | Wake mechanism | Requirement |
-| --- | --- | --- |
-| Generic application | Trusted command receives a JSON event on stdin | Provide the host's input/API bridge |
-| Pi | Included extension calls the current session's custom-message API | Load `extensions/pi-relay.ts` |
-| Codex with queue support | `codex queue --thread … --message …` | Reachable existing session daemon/endpoint |
-| Claude Code Channels | Included native channel server | Client must enable and confirm the channel |
-| Other MCP clients | Standard mailbox tools plus a command/stream adapter | Host must expose an event/input interface |
+中断后有未确认操作时，先核对实际结果，不自动重做。回执区分已发送、已领取、已确认处理。见[状态与恢复](docs/chatrooms.md#状态与中断恢复)。
 
-All adapters support **either role**. Python platform support and a particular host's OS support are separate. Actual host acceptance, Agent receipt, and task completion are separately verified states.
+绑定会话支持[自动恢复](docs/local-collaboration.md#自动恢复)：工作前预挂下一次收件；回调监听子进程异常退出自动重启；漏收件/回执时发送有次数上限的核对提醒。恢复不会自动确认或重做任务，没有未解决消息时不唤醒模型。现有未绑定会话不自动迁移。
 
-### Generic command adapter
+本机协作沿用你为客户端配置的权限，不另加每条消息审批，也不修改宿主权限。聊天室消息不能扩大用户授权；它不是原生 Agent 工具的沙箱。
 
-Create a trusted local JSON file. Use absolute paths for detached processes; paths with spaces remain separate argv entries. On Windows use JSON-escaped backslashes or forward slashes.
-
-```json
-{
-  "type": "command",
-  "argv": ["/absolute/path/to/python", "/absolute/path/to/my_host_bridge.py"],
-  "timeout": 30
-}
-```
-
-The bridge reads one UTF-8 JSON event from stdin, submits it to an existing Agent session using the host's API, and exits 0 only after the host accepts it. No shell evaluates the arguments. A callback that only logs events is a protocol test, not an Agent integration. See [adapter contract](docs/ADAPTERS.md).
-
-Configure each side once in its own environment:
+## 开发与高级功能
 
 ```console
-airelay connect work --as sender --wake-config sender-wake.json
-airelay connect work --as receiver --wake-config receiver-wake.json
+python3 -m unittest discover -s tests -v
+node --test tests/test_pi_extension.mjs tests/test_chat_ui.mjs
 ```
 
-These register roles and start detached Python listeners. They send no tasks and launch no models. Without a configured adapter, a plain `connect` reports `needs_adapter`.
+测试使用临时数据、端口及模拟宿主，不能代替真实客户端的端到端验证。完整接口仍可用 `python3 relay.py --help` 查看；`python3 relay.py mcp-config` 生成完整 MCP 配置。`local_dev.py` 的简洁入口不加载旧等待、操作批准和接单工具。
 
-### Pi
+- [本地开发与端口隔离](LOCAL_DEVELOPMENT.md)
+- [网络部署](docs/deployment.md)：按需启用，网络房间保留保护。
+- [受控接单执行器](docs/controlled-executor.md)：独立高级功能。
+- [旧接口兼容](docs/legacy-mailbox.md)
 
-Run `airelay extension-path pi` to locate the installed extension, then start Pi with `pi --extension "ABSOLUTE_PATH_FROM_OUTPUT"` (replace the placeholder with the returned path). The relative path `./extensions/pi-relay.ts` works only from a source checkout. Then run in the two Pi sessions respectively:
+当前功能位于本仓库 `main` 源码中，尚未发布新版安装包；已发布的 v0.3.0 是旧版 sender/receiver 邮箱。先按上述源码方式启动，不要依赖旧版安装包。Windows/macOS 的自动化测试与具体 Agent 的真实自动唤醒验收是两回事，后者以客户端接入结果为准。
 
-```text
-/relay-connect work sender
-/relay-connect work receiver
-```
-
-The extension owns a quiet `airelay events` child process. Only a validated real message event calls `pi.sendMessage(..., {triggerTurn: true})`. The event is external custom content, not a fabricated human message. `/relay-disconnect` or session shutdown stops the child. Set `AIRELAY_EXECUTABLE` if needed and use the same `AIRELAY_DATA_DIR` for both sides. No specific model/provider is required.
-
-### Codex queue
-
-Use an **existing** session ID:
-
-```console
-airelay connect work --as sender --adapter codex --thread-id EXISTING_SESSION_ID
-airelay wake doctor work --as sender
-```
-
-Swap the role for receiver. `--codex-binary PATH` selects the native executable; `--remote ADDRESS` selects an already-running endpoint. An unavailable daemon or unsupported queue command is reported. The adapter does not start a daemon, create another chat, bypass approvals, or schedule model polling. Doctor checks prerequisites without sending a message; it is not proof of live Agent delivery.
-
-### Claude Code Channels
-
-In the external terminal for the existing Claude project:
-
-```console
-airelay claude work --as receiver
-```
-
-This resumes the existing conversation with the native development channel; follow the client's channel confirmation. Swap the role for sender. Do not launch this inside another Agent's shell tool. Host account/client policies apply. Stop the native channel before assigning the same role to a generic background listener.
-
-## MCP and roles
-
-```console
-airelay mcp-config
-airelay pair work
-```
-
-The first generates stdio MCP configuration for the installed Python/data path; load it in both hosts. The second prints separate sender/receiver instructions. **The wake adapter remains required:** MCP tools perform mailbox operations; the host bridge triggers a turn.
-
-| Tool | Purpose |
-| --- | --- |
-| `relay_connect` | Bind room/role; start an already-configured background adapter |
-| `relay_send` | Sender only: command, optional idempotency `key` and result `reply_to` |
-| `relay_receive` | Receive one message after an event; immediately return if empty |
-| `relay_reply` | Receiver only: return actual result/evidence or blocker linked to its command |
-| `relay_ack` | Sender confirms a reviewed result |
-| `relay_status` | Explicit inspection; never an AI polling loop |
-| `relay_disconnect` | Stop future wakes/unregister role; retain messages |
-| `relay_listen` | Legacy one-shot wait; never asks the model to renew |
-
-Each MCP connection fixes its room role; changing parameters cannot impersonate the other Agent. The local CLI is a trusted-owner interface, not an OS-user security boundary.
-
-Receiver executes only within the user's authorization and reports actual results. Sender reviews and issues follow-up commands only for the authorized objective. Both end their turns while idle. Peer messages cannot override host instructions or approvals.
-
-## Inspect, stop, recover
-
-```console
-airelay status work
-airelay wake status work --as receiver
-airelay wake stop work --as receiver
-airelay wake start work --as receiver
-airelay disconnect work --as receiver
-```
-
-`registered`, background `running`, notification `accepted`, message `received`, and message `done` are different evidence. Callback success means host acceptance, not task completion.
-
-Notifications are durable and are not automatically repeated after ambiguous failures. Unfinished claimed messages block later work. Inspect the host before explicit recovery:
-
-```console
-airelay wake retry work --as receiver --message-id MESSAGE_ID
-airelay receive work --as receiver --resume --timeout 0
-```
-
-Retry can repeat a host notification. Resume reveals already-claimed content, not permission to execute it again. A stopped callback already in flight may finish. Generations/heartbeats control daemon ownership; stop never kills an unrelated process by a stale PID.
-
-After reboot, start the listener explicitly. OS login-service installation is not included in this alpha.
-
-## Develop and release
-
-```console
-python -m unittest discover -s tests -v
-node --test tests/test_pi_extension.mjs
-python -m pip install build
-python -m build
-```
-
-Node 22.13+ is needed only for the Pi extension contract test. Core runtime has no Node dependency. Tests use temporary databases/fake hosts with no model calls. They cover idle silence, both directions, role restrictions, duplicate/restart handling, failure, UTF-8 paths, and fresh-wheel installation outside the checkout.
-
-All nine Windows/macOS/Linux × Python 3.10/3.12/3.13 combinations [passed GitHub Actions](https://github.com/zxc972/local-ai-relay/actions/runs/39779976068), including fresh-wheel installation and background notifications for both roles. Protocol tests do not establish real host consent or live model execution. See the [validation snapshot](docs/VALIDATION.md).
-
-The older task console and `--legacy-tasks` transport remain compatibility interfaces. The default is the event-driven mailbox; legacy Codex heartbeat reception is disabled. Local messages, credentials and generated client configuration are excluded from Git/releases. See [CONTRIBUTING](CONTRIBUTING.md), [adapter contract](docs/ADAPTERS.md), and [release checklist](docs/RELEASING.md).
-
-Official references: [Codex queue](https://learn.chatgpt.com/docs/developer-commands#codex-queue), [Pi extensions](https://pi.dev/docs/latest/extensions), [Claude Channels](https://code.claude.com/docs/en/channels-reference).
+MIT License.

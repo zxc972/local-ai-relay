@@ -10,9 +10,11 @@ import threading
 if __package__:
     from .core import DEFAULT_DATA, RelayError, Store
     from .message_bus_mcp import INSTRUCTIONS as MAILBOX_INSTRUCTIONS, TOOLS as MAILBOX_TOOLS, Endpoint
+    from .chatroom_mcp import INSTRUCTIONS as CHAT_INSTRUCTIONS, TOOLS as CHAT_TOOLS, BY_NAME as CHAT_NAMES, ChatEndpoint, SIMPLE_TOOLS, SIMPLE_INSTRUCTIONS
 else:
     from core import DEFAULT_DATA, RelayError, Store
     from message_bus_mcp import INSTRUCTIONS as MAILBOX_INSTRUCTIONS, TOOLS as MAILBOX_TOOLS, Endpoint
+    from chatroom_mcp import INSTRUCTIONS as CHAT_INSTRUCTIONS, TOOLS as CHAT_TOOLS, BY_NAME as CHAT_NAMES, ChatEndpoint, SIMPLE_TOOLS, SIMPLE_INSTRUCTIONS
 
 
 def schema(properties, required):
@@ -79,7 +81,9 @@ def invoke(store, name, arguments, cancelled=None):
     return {"tasks": store.list_tasks(**arguments)}
 
 
-def serve(store, source=sys.stdin, destination=sys.stdout, legacy=False):
+def serve(store, source=sys.stdin, destination=sys.stdout, legacy=False, legacy_mailbox=False, simple=False):
+    if simple and (legacy or legacy_mailbox):
+        raise RelayError("简洁聊天室不能同时启用旧接口")
     for stream in (source, destination):
         if stream in (sys.stdin, sys.stdout) and hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8")
@@ -87,8 +91,10 @@ def serve(store, source=sys.stdin, destination=sys.stdout, legacy=False):
     active_lock = threading.Lock()
     active = {}
     initialized = False
-    available_tools = TOOLS if legacy else MAILBOX_TOOLS
+    available_tools = TOOLS if legacy else MAILBOX_TOOLS if legacy_mailbox else SIMPLE_TOOLS if simple else CHAT_TOOLS
+    allowed_names = {tool["name"] for tool in available_tools}
     mailbox_endpoint = Endpoint(store.root)
+    chat_endpoint = ChatEndpoint(store.root)
 
     def emit(message):
         with output_lock:
@@ -109,8 +115,12 @@ def serve(store, source=sys.stdin, destination=sys.stdout, legacy=False):
                 count += 1
                 emit({"jsonrpc": "2.0", "method": "notifications/progress", "params": {
                     "progressToken": token, "progress": count, "message": "正在监听中转站消息"}})
+            if params.get("name") not in allowed_names:
+                raise RelayError("执行前已拦截：工具不在当前聊天室白名单中", 403)
             if legacy:
                 result = invoke(store, params.get("name"), params.get("arguments", {}), cancel)
+            elif params.get("name") in CHAT_NAMES:
+                result = chat_endpoint.invoke(params.get("name"), params.get("arguments", {}), cancel, progress)
             else:
                 result = mailbox_endpoint.invoke(params.get("name"), params.get("arguments", {}), cancel, progress)
             response = {"content": [{"type": "text", "text": json.dumps(result, ensure_ascii=False)}],
@@ -160,11 +170,14 @@ def serve(store, source=sys.stdin, destination=sys.stdout, legacy=False):
                 continue
             if method == "initialize":
                 initialized = True
+                info = params.get("clientInfo", {})
+                chat_endpoint.client_name = str(info.get("name", "")) if isinstance(info, dict) else ""
                 offered = request.get("params", {}).get("protocolVersion")
                 version = offered if offered in ("2024-11-05", "2025-03-26", "2025-06-18", "2025-11-25") else "2025-06-18"
                 result = {"protocolVersion": version, "capabilities": {"tools": {}},
                           "serverInfo": {"name": "local-ai-relay", "version": "0.3.0"},
-                          "instructions": ("本地双 AI 任务邮箱。保存 task_id，等待结果后评审。" if legacy else MAILBOX_INSTRUCTIONS)}
+                          "instructions": ("本地双 AI 任务邮箱。保存 task_id，等待结果后评审。" if legacy else
+                                           MAILBOX_INSTRUCTIONS if legacy_mailbox else SIMPLE_INSTRUCTIONS if simple else CHAT_INSTRUCTIONS)}
             elif not initialized:
                 emit({"jsonrpc": "2.0", "id": rid, "error": {"code": -32002, "message": "Initialize first"}})
                 continue
@@ -190,11 +203,15 @@ def serve(store, source=sys.stdin, destination=sys.stdout, legacy=False):
             for event in active.values():
                 event.set()
         pool.shutdown(wait=True, cancel_futures=True)
+        chat_endpoint.close()
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Local AI Relay MCP (stdio)")
     parser.add_argument("--data-dir", default=str(DEFAULT_DATA))
-    parser.add_argument("--legacy-tasks", action="store_true", help="使用旧的 Codex 任务工具；默认提供通用双向消息工具")
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument("--simple", action="store_true", help="仅提供 9 个日常聊天室工具")
+    modes.add_argument("--legacy-tasks", action="store_true", help="显式启用旧任务接口，不属于安全聊天室模式")
+    modes.add_argument("--legacy-mailbox", action="store_true", help="显式启用旧 sender/receiver 接口，不与安全聊天室混用")
     args = parser.parse_args()
-    serve(Store(args.data_dir), legacy=args.legacy_tasks)
+    serve(Store(args.data_dir), legacy=args.legacy_tasks, legacy_mailbox=args.legacy_mailbox, simple=args.simple)

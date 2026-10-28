@@ -1,0 +1,8 @@
+# Only runtime code and public assets enter the image build context.
+**
+!Dockerfile
+!*.py
+!static/
+!static/**
+!bin/
+!bin/airelay

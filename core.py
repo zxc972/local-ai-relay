@@ -14,10 +14,12 @@ from pathlib import Path
 
 def default_data_dir():
     """Use writable user data, while preserving an existing source checkout."""
+    source = Path(__file__).resolve().parent
+    if (source / "local_dev.py").is_file() and (source / "tests").is_dir():
+        return source / ".local-dev"
     override = os.environ.get("AIRELAY_DATA_DIR")
     if override:
         return Path(override).expanduser()
-    source = Path(__file__).resolve().parent
     if ((source / ".relay").is_dir() and (source / "tests").is_dir()
             and (source / "bin" / "airelay").is_file()
             and (source / "README.md").is_file()):

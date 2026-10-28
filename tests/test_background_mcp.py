@@ -61,7 +61,7 @@ class BackgroundMCPTests(unittest.TestCase):
                     self.assertEqual(connected["mode"], "background")
                     self.assertIsNone(connected["next_tool"])
                     self.assertTrue(connected["background"]["running"])
-                peers = [Peer(data), Peer(data, cli=True)]
+                peers = [Peer(data, legacy_mailbox=True), Peer(data, cli=True, legacy_mailbox=True)]
                 sender, receiver = peers
                 for peer, role in ((sender, "sender"), (receiver, "receiver")):
                     packet = peer.tool("relay_connect", room="shared", role=role)

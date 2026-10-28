@@ -1,4 +1,6 @@
 .relay/
+.local-dev/
+data/
 __pycache__/
 *.pyc
 .coverage
@@ -11,3 +13,9 @@ dist/
 *.log
 .DS_Store
 preview*.png
+deploy/.env
+*.sqlite3
+*.sqlite3-*
+*.token
+# Private verification image contains a test-room invite.
+docs/verification/local-simple-invite.png

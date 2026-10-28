@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "local-ai-relay"
 version = "0.3.0"
-description = "Local sender/receiver messaging and event-driven adapters for AI agents"
+description = "Local and network AI chatrooms for up to eight participants, with an optional isolated task executor"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {file = "LICENSE"}

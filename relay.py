@@ -144,6 +144,28 @@ def main(argv=None):
     else:
         from room_cli import add_commands
     add_commands(commands)
+    if __package__:
+        from .chatroom_mcp import add_commands as add_chat_commands, run as run_chat
+    else:
+        from chatroom_mcp import add_commands as add_chat_commands, run as run_chat
+    add_chat_commands(commands)
+    if __package__:
+        from .chat_safety import add_commands as add_safety_commands, run as run_safety
+    else:
+        from chat_safety import add_commands as add_safety_commands, run as run_safety
+    add_safety_commands(commands)
+    if __package__:
+        from .chat_executor import add_commands as add_executor_commands, run as run_executor
+    else:
+        from chat_executor import add_commands as add_executor_commands, run as run_executor
+    add_executor_commands(commands)
+    serve = commands.add_parser("serve", help="打开简洁 AI 聊天室；本机或网络共享，最多 8 人")
+    serve.add_argument("--host", default="127.0.0.1")
+    serve.add_argument("--port", type=int, default=8789)
+    serve.add_argument("--public-url", help="其他电脑可以访问的地址，网络监听时必填")
+    serve.add_argument("--cert", help="HTTPS 证书路径")
+    serve.add_argument("--key", help="HTTPS 私钥路径")
+    serve.add_argument("--open", action="store_true")
     init = commands.add_parser("init", help="绑定当前聊天并生成接入配置")
     init.add_argument("--thread-id", default=os.environ.get("CODEX_THREAD_ID"))
     init.add_argument("--title", default="Codex 当前聊天")
@@ -180,12 +202,43 @@ def main(argv=None):
         item.add_argument("task_id")
     task_actions.add_parser("list")
     args = parser.parse_args(argv)
+    if args.command == "executor":
+        dump(run_executor(args))
+        return
+    if args.command == "serve":
+        if __package__:
+            from .chat_server import create_server
+        else:
+            from chat_server import create_server
+        server = create_server(args.data_dir, args.host, args.port, args.public_url, args.cert, args.key)
+        url = server.service.public_url + "/"
+        if not server.local_access:
+            url += "#admin=" + server.service.admin_token
+        dump({"status": "listening", "url": url, "max_members": 8,
+              "note": "打开页面即可创建房间，再复制房间邀请。" if server.local_access else
+                      "打开此房主链接创建房间，再复制房间邀请。房主链接仅自己使用。"})
+        sys.stdout.flush()
+        if args.open:
+            webbrowser.open(url)
+        try:
+            server.serve_forever()
+        except KeyboardInterrupt:
+            pass
+        finally:
+            server.server_close()
+        return
+    if args.command == "room":
+        dump(run_chat(args))
+        return
+    if args.command == "safety":
+        dump(run_safety(args))
+        return
     if args.command == "mcp":
         if __package__:
             from .mcp_server import serve
         else:
             from mcp_server import serve
-        serve(Store(args.data_dir), legacy=args.legacy_tasks)
+        serve(Store(args.data_dir), legacy=args.legacy_tasks, legacy_mailbox=args.legacy_mailbox, simple=args.simple)
         return
     if args.command in ("install-cli", "pair", "join", "receive", "status", "leave", "send", "ack",
                         "mcp-config", "extension-path", "connect", "listen", "disconnect", "events", "wake",

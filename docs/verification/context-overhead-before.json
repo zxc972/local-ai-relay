@@ -1,0 +1,102 @@
+{
+  "supports_batch_reply": false,
+  "scenarios": {
+    "manual_short_receive": {
+      "calls": 1,
+      "arguments_bytes": 20,
+      "result_json_bytes": 860,
+      "mcp_text_bytes": 915,
+      "mcp_envelope_bytes": 1935
+    },
+    "manual_short_reply": {
+      "calls": 1,
+      "arguments_bytes": 182,
+      "result_json_bytes": 606,
+      "mcp_text_bytes": 641,
+      "mcp_envelope_bytes": 1377
+    },
+    "manual_lookup": {
+      "calls": 1,
+      "arguments_bytes": 72,
+      "result_json_bytes": 2339,
+      "mcp_text_bytes": 2421,
+      "mcp_envelope_bytes": 4962
+    },
+    "manual_four_message_roundtrip": {
+      "calls": 3,
+      "arguments_bytes": 428,
+      "result_json_bytes": 2754,
+      "mcp_text_bytes": 2937,
+      "mcp_envelope_bytes": 6195
+    },
+    "claude_short_receive": {
+      "calls": 1,
+      "arguments_bytes": 20,
+      "result_json_bytes": 880,
+      "mcp_text_bytes": 935,
+      "mcp_envelope_bytes": 1975
+    },
+    "claude_short_reply": {
+      "calls": 1,
+      "arguments_bytes": 182,
+      "result_json_bytes": 1273,
+      "mcp_text_bytes": 1315,
+      "mcp_envelope_bytes": 2730
+    },
+    "claude_lookup": {
+      "calls": 1,
+      "arguments_bytes": 72,
+      "result_json_bytes": 2339,
+      "mcp_text_bytes": 2421,
+      "mcp_envelope_bytes": 4962
+    },
+    "claude_four_message_roundtrip": {
+      "calls": 3,
+      "arguments_bytes": 428,
+      "result_json_bytes": 3461,
+      "mcp_text_bytes": 3651,
+      "mcp_envelope_bytes": 7628
+    },
+    "long_24000_bytes_budget_4000": {
+      "calls": 37,
+      "arguments_bytes": 5359,
+      "result_json_bytes": 108645,
+      "mcp_text_bytes": 111741,
+      "mcp_envelope_bytes": 227952,
+      "content_bytes": 24000,
+      "repeated_checkpoint_bytes": 47495
+    },
+    "long_24000_bytes_budget_8000": {
+      "calls": 7,
+      "arguments_bytes": 889,
+      "result_json_bytes": 37335,
+      "mcp_text_bytes": 37851,
+      "mcp_envelope_bytes": 76512,
+      "content_bytes": 24000,
+      "repeated_checkpoint_bytes": 6785
+    },
+    "manual_restore": {
+      "calls": 1,
+      "arguments_bytes": 20,
+      "result_json_bytes": 2586,
+      "mcp_text_bytes": 2688,
+      "mcp_envelope_bytes": 5504
+    },
+    "claude_restore": {
+      "calls": 1,
+      "arguments_bytes": 20,
+      "result_json_bytes": 2586,
+      "mcp_text_bytes": 2688,
+      "mcp_envelope_bytes": 5504
+    }
+  },
+  "label": "before",
+  "measurement": "UTF-8 serialized bytes and tool calls; not host tokens or billing",
+  "source_sha256": {
+    "chatroom.py": "23233cf9342a47ea228cf7a5acfe40d4109c1e0e314ade62ff11934628343752",
+    "chat_context.py": "6ff2e2d010c805f93b986ce9dc31a52945378d7de1cb488f9112724f539ae91f",
+    "chat_delivery.py": "9c45d6ab4803741aafd49412e2ff5db00e4cd90f24c0cd84c46b5f1dba053a8a",
+    "chatroom_mcp.py": "d5ecdeb6bb93adbded9f1af7857856d1d7c66342264d53a444464a174032b203",
+    "chat_background.py": "4f4c17d67779af29d9c52c19742ad96aa31767daea1407e7677b659448605870"
+  }
+}

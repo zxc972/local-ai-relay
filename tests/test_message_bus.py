@@ -17,9 +17,13 @@ from room_cli import ENTRY, Room
 
 
 class Peer:
-    def __init__(self, data, cli=False):
+    def __init__(self, data, cli=False, legacy_mailbox=False, simple=False):
         command = [sys.executable, str(ENTRY), "--data-dir", str(data), "mcp"] if cli else [
             sys.executable, str(ROOT / "mcp_server.py"), "--data-dir", str(data)]
+        if legacy_mailbox:
+            command.append("--legacy-mailbox")
+        if simple:
+            command.append("--simple")
         env = {k: v for k, v in os.environ.items() if k not in ("CODEX_THREAD_ID", "AIRELAY_SESSION_ID")}
         self.process = subprocess.Popen(command, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                         stderr=subprocess.PIPE, text=True, bufsize=1)
@@ -62,8 +66,8 @@ class Peer:
     def call(self, method, params):
         return self.receive(self.begin(method, params))
 
-    def tool(self, name, **arguments):
-        response = self.call("tools/call", {"name": name, "arguments": arguments})
+    def tool(self, tool_name, **arguments):
+        response = self.call("tools/call", {"name": tool_name, "arguments": arguments})
         if response.get("isError"):
             raise AssertionError(response)
         return response["structuredContent"]
@@ -102,7 +106,7 @@ class MessageBusTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="generic MCP ")
         self.data = Path(self.temp.name) / "数据 space"
-        self.sender, self.receiver = Peer(self.data, cli=True), Peer(self.data)
+        self.sender, self.receiver = Peer(self.data, cli=True, legacy_mailbox=True), Peer(self.data, legacy_mailbox=True)
 
     def tearDown(self):
         self.sender.close()

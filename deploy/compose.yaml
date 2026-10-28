@@ -1,0 +1,39 @@
+services:
+  relay:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    init: true
+    command:
+      - serve
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8787"
+      - --public-url
+      - https://${CHAT_DOMAIN:?Copy .env.example to .env and set CHAT_DOMAIN}
+    volumes:
+      - relay-data:/data
+    # No host port: the public entry point is Caddy below.
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      CHAT_DOMAIN: ${CHAT_DOMAIN:?Set CHAT_DOMAIN in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      relay:
+        condition: service_healthy
+
+volumes:
+  relay-data:
+  caddy-data:
+  caddy-config:

@@ -51,12 +51,12 @@ def install_cli(destination=None):
             "note": "仅安装本地入口，不修改 shell 配置、不需要模型 API Key。"}
 
 
-def mcp_config(data_dir):
+def mcp_config(data_dir, simple=False):
     folder = Path(data_dir).expanduser().resolve()
     folder.mkdir(parents=True, exist_ok=True, mode=0o700)
     config = {"mcpServers": {"local-ai-relay": {
         "command": sys.executable,
-        "args": [str(ROOT / "mcp_server.py"), "--data-dir", str(folder)]}}}
+        "args": [str(ROOT / "mcp_server.py"), "--data-dir", str(folder)] + (["--simple"] if simple else [])}}}
     temporary = folder / ("mcp." + os.urandom(4).hex() + ".tmp")
     private_write(temporary, json.dumps(config, ensure_ascii=False, indent=2) + "\n")
     os.replace(temporary, folder / "mcp.json")
@@ -267,17 +267,22 @@ class Room:
 def add_commands(commands):
     install = commands.add_parser("install-cli", help="安装本地 airelay 命令，无需联网")
     install.add_argument("--bin-dir")
-    commands.add_parser("mcp-config", help="生成两边共用的通用 stdio MCP 配置，保存为数据目录中的 mcp.json")
+    config = commands.add_parser("mcp-config", help="生成通用 stdio MCP 配置，保存为数据目录中的 mcp.json")
+    config.add_argument("--simple", action="store_true", help="仅提供日常聊天室工具")
     extension = commands.add_parser("extension-path", help="显示安装包中宿主扩展的绝对路径")
     extension.add_argument("host", choices=["pi"])
     mcp = commands.add_parser("mcp", help="运行通用 stdio MCP 中间件，不绑定客户端或模型")
-    mcp.add_argument("--legacy-tasks", action="store_true", help="可选的旧任务模式")
+    modes = mcp.add_mutually_exclusive_group()
+    modes.add_argument("--simple", action="store_true", help="仅提供日常聊天室工具")
+    modes.add_argument("--legacy-tasks", action="store_true", help="旧任务模式，不属于安全聊天室")
+    modes.add_argument("--legacy-mailbox", action="store_true", help="旧 sender/receiver 模式，不与安全聊天室混用")
     connect = commands.add_parser("connect", help="登记角色并启动已配置的后台唤醒；没有适配器时明确报告，不进行 AI 轮询")
     connect.add_argument("room")
     connect.add_argument("--as", dest="role", choices=["sender", "receiver"], required=True)
     connect.add_argument("--manual", action="store_true", help="只登记连接，暂不监听")
-    connect.add_argument("--wake-config", help="可信本地唤醒适配器 JSON 文件（command 或 codex-queue）")
-    connect.add_argument("--adapter", choices=["codex"], help="使用 Codex queue 向现有会话投递事件")
+    connect.add_argument("--wake-config", help="可信本地唤醒适配器 JSON 文件")
+    connect.add_argument("--adapter", choices=["codex", "codex-desktop"],
+                         help="旧版分工邮箱：向明确指定的现有宿主会话投递事件")
     connect.add_argument("--thread-id", help="Codex 现有会话 ID；未填写时读取 CODEX_THREAD_ID")
     connect.add_argument("--codex-binary", help="Codex 可执行文件路径；默认在 PATH 查找")
     connect.add_argument("--remote", help="Codex 现有守护进程连接地址")
@@ -371,7 +376,7 @@ def run(args):
     if args.command == "install-cli":
         return install_cli(args.bin_dir)
     if args.command == "mcp-config":
-        return mcp_config(args.data_dir)
+        return mcp_config(args.data_dir, simple=args.simple)
     room = Room(args.room, args.data_dir)
     if args.command == "pair":
         def prompt(role):
@@ -432,8 +437,12 @@ def run(args):
                     config["binary"] = args.codex_binary
                 if args.remote:
                     config["remote"] = args.remote
+            elif args.adapter == "codex-desktop":
+                if args.codex_binary or args.remote:
+                    raise RelayError("codex-binary 和 remote 仅用于 --adapter codex")
+                config = {"type": args.adapter, "thread_id": args.thread_id or os.environ.get("CODEX_THREAD_ID", "")}
             elif args.thread_id or args.codex_binary or args.remote:
-                raise RelayError("thread-id、codex-binary、remote 需要 --adapter codex")
+                raise RelayError("thread-id、codex-binary、remote 需要明确的 --adapter")
             if config is not None:
                 if __package__:
                     from .background import Background

@@ -1,0 +1,10 @@
+{$CHAT_DOMAIN} {
+    encode zstd gzip
+    reverse_proxy relay:8787 {
+        transport http {
+            dial_timeout 5s
+            # Agent background long-polls last up to 20 seconds.
+            response_header_timeout 35s
+        }
+    }
+}

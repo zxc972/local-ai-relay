@@ -86,12 +86,22 @@ class Mailbox:
             mode = "not_running"
         if state.get("needs_attention") or state.get("error"):
             mode = "needs_attention"
-        return {**result, "transport": "mcp", "mode": mode, "listen_enabled": bool(state.get("running")),
+        # The old auto_receive field describes native/legacy listeners only.
+        # Return both peers' actual event paths so a sender cannot mistake the
+        # receiver's old "off" value for a stopped generic background watcher.
+        result["peers"] = self.status()["peers"]
+        reception = result["peers"][role]["reception"]
+        if listen and reception["mode"] == "channel":
+            mode = "channel"
+        return {**result, "transport": "mcp", "mode": mode,
+                "listen_enabled": bool(listen and reception["automatic"]),
                 "background": state,
                 "role_info": ROLE_INFO[role],
                 "next_tool": None,
                 "instructions": RULES + purpose + "本次只建立连接，没有发送任务。"
-                "结束本轮待命，不循环调用监听或状态工具。background.running 为真时由后台进程等待新消息；"
+                "结束本轮待命，不循环调用监听或状态工具。"
+                "通过 peers 中 reception.automatic 判断自动收件；auto_receive 仅表示旧版或原生通道的状态。"
+                "background.running 为真或 mode=channel 时由后台事件通道等待新消息；"
                 "mode=needs_adapter 表示尚缺宿主事件接入，应报告该状态，不得用 AI 轮询代替。"
                 "事件到达时只调用一次 relay_receive，处理并回传后再次待命。"}
 
@@ -110,7 +120,17 @@ class Mailbox:
         result["transport"] = "mcp"
         background = Background(self.room)
         for role in ROLES:
-            result["peers"][role]["background"] = background.status(role)
+            peer = result["peers"][role]
+            peer["background"] = background.status(role)
+            native = peer["auto_receive"]
+            native_running = bool(native.get("enabled") and native.get("status") == "listening")
+            generic_running = peer["background"]["running"]
+            adapter = peer["background"].get("adapter") or {}
+            peer["reception"] = {
+                "automatic": bool(generic_running or native_running),
+                "mode": "background" if generic_running else ("channel" if native_running else "manual"),
+                "target_session": adapter.get("thread_id"),
+            }
         result["mode"] = "background" if any(p["background"].get("running") for p in result["peers"].values()) else "standby"
         return result
 

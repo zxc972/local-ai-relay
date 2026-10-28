@@ -17,11 +17,19 @@ from urllib.parse import urlsplit
 
 if __package__:
     from .core import RelayError
+    from .desktop_ipc import DesktopTurnBusy
 else:
     from core import RelayError
+    from desktop_ipc import DesktopTurnBusy
 
 
 REGISTRY = {}
+
+
+def deferred_delivery(delivery):
+    """Only a proven rejection before turn start is safe to defer and retry."""
+    return (isinstance(delivery, dict) and delivery.get("accepted") is False
+            and delivery.get("status") == "busy" and delivery.get("retry_safe") is True)
 
 
 def register_adapter(name, adapter):
@@ -244,5 +252,46 @@ class CodexQueueAdapter:
         return _run(argv, config)
 
 
+class CodexDesktopAdapter:
+    """Explicit opt-in to the experimental, local desktop session-owner IPC."""
+    def normalize(self, config):
+        _config(config, {"type", "thread_id", "socket_path", "timeout"})
+        result = {"type": "codex-desktop", "thread_id": _text(config.get("thread_id"), "thread_id"),
+                  "timeout": _timeout(config.get("timeout", 10))}
+        if config.get("socket_path") is not None:
+            result["socket_path"] = _text(config["socket_path"], "socket_path")
+        return result
+
+    def connection(self, config):
+        if __package__:
+            from .desktop_ipc import DesktopIPC
+        else:
+            from desktop_ipc import DesktopIPC
+        return DesktopIPC(config.get("socket_path"), config["timeout"])
+
+    def doctor(self, config):
+        with self.connection(config) as connection:
+            connection.owner(config["thread_id"])
+        return {"ready": True, "status": "candidate",
+                "detail": "已定位现有桌面聊天；需保持聊天已加载。内部协议可能随版本变化。"}
+
+    def deliver(self, config, event):
+        sending = False
+        try:
+            with self.connection(config) as connection:
+                owner = connection.owner(config["thread_id"])
+                sending = True
+                turn_id = connection.notify(config["thread_id"], owner, event)
+            return {"accepted": True, "status": "accepted", "retry_safe": False,
+                    "turn_id": turn_id, "detail": "桌面已接受新回合；尚不代表任务完成。"}
+        except DesktopTurnBusy as error:
+            return {"accepted": False, "status": "busy", "retry_safe": True,
+                    "error": str(error)}
+        except (OSError, RelayError, ValueError, KeyError, TypeError) as error:
+            return {"accepted": False, "status": "uncertain" if sending else "failed",
+                    "retry_safe": False, "error": str(error)}
+
+
+register_adapter("codex-desktop", CodexDesktopAdapter())
 register_adapter("command", CommandAdapter())
 register_adapter("codex", CodexQueueAdapter())

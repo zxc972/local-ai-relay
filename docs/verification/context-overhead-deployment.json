@@ -1,0 +1,19 @@
+{
+  "health": {
+    "ok": true,
+    "service": "ai-chatroom",
+    "max_members": 8,
+    "chat_protocols": [
+      1,
+      2
+    ],
+    "context_management": "local-checkpoint-v1"
+  },
+  "previous_pid": 60074,
+  "current_pid": 76654,
+  "backup": ".relay/backups/context-lean-20261023-235457",
+  "preserved_messages": 37,
+  "original_fields_sha256": "1acd8defd7ab3850fd132cc6694e08aa717228186d0213b4aede32accc3b946a",
+  "ack_request_column_present": true,
+  "codex_active": 0
+}
