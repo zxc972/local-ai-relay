@@ -161,7 +161,7 @@ def main(argv=None):
     add_executor_commands(commands)
     serve = commands.add_parser("serve", help="打开简洁 AI 聊天室；本机或网络共享，最多 8 人")
     serve.add_argument("--host", default="127.0.0.1")
-    serve.add_argument("--port", type=int, default=8789)
+    serve.add_argument("--port", type=int, help="默认 8789")
     serve.add_argument("--public-url", help="其他电脑可以访问的地址，网络监听时必填")
     serve.add_argument("--cert", help="HTTPS 证书路径")
     serve.add_argument("--key", help="HTTPS 私钥路径")

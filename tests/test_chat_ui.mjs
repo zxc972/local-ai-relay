@@ -9,7 +9,7 @@ const source = readFileSync(new URL("../static/chat.js", import.meta.url), "utf8
 const tick = () => new Promise(resolve => setImmediate(resolve));
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return {promise, resolve}; };
 
-async function browser({hash = "#room=work&invite=invitation", storage = new Map(), handle, origin = "https://chat.example.com"} = {}) {
+async function browser({hash = "#room=work&invite=invitation", storage = new Map(), local = new Map(), handle, origin = "https://chat.example.com"} = {}) {
   const nodes = new Map(), calls = [];
   let document;
   function element() {
@@ -37,6 +37,7 @@ async function browser({hash = "#room=work&invite=invitation", storage = new Map
   };
   const context = vm.createContext({document, location, crypto: webcrypto, URL, URLSearchParams, AbortSignal,
     sessionStorage: {getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value)},
+    localStorage: {getItem: key => local.get(key) ?? null, setItem: (key, value) => local.set(key, value)},
     history: {replaceState(_state, _unused, url) { location.hash = new URL(url, location.origin).hash; }},
     setInterval() {}, setTimeout() {}, clearTimeout() {},
     fetch: async (path, options) => {
@@ -46,9 +47,9 @@ async function browser({hash = "#room=work&invite=invitation", storage = new Map
       return {ok: result.ok !== false, json: async () => result};
     },
   });
-  vm.runInContext(source + "\nglobalThis.ui = {state, refresh, selectRoom, direct, openDirect, refreshDirect};", context);
+  vm.runInContext(source + "\nglobalThis.ui = {state, refresh, selectRoom, direct, openDirect, refreshDirect, showRecovery};", context);
   await tick(); await tick();
-  return {get, calls, storage, location, ui: context.ui};
+  return {get, calls, storage, local, location, ui: context.ui};
 }
 
 function member(storage, room = "work", joined = true) {
@@ -280,14 +281,17 @@ test("role invitations choose free nicknames and keep execution within user scop
   assert.match(h.get("invite-text").value, /name="workbuddy"/);
 });
 
-test("local invitation pins CLI to this checkout even when opened by invitation", async () => {
+test("portable invitation does not disclose the server's installation path", async () => {
   const prefix = "'/python path/python3' '/local copy/relay.py' --data-dir '/local copy/.local-dev'";
   const h = await browser({origin: "http://127.0.0.1:8789", handle: call => {
     if (call.path === "/api/local-session") return {admin_token: "local-admin", cli_command: prefix};
     if (call.path.endsWith("/state")) return {members: [], security: {policy: "trusted-local"}, member_count: 0, max_members: 8};
   }});
   h.get("invite").onclick();
-  assert.ok(h.get("invite-text").value.includes(prefix + " room join work"));
+  assert.doesNotMatch(h.get("invite-text").value, /python path|local copy|--data-dir/);
+  assert.match(h.get("invite-text").value, /python3 local_dev.py room join work/);
+  assert.match(h.get("invite-text").value, /py -3 local_dev.py room join work/);
+  assert.match(h.get("invite-text").value, /server="http:\/\/127.0.0.1:8789"/);
   assert.match(h.get("invite-text").value, /session_id="<CURRENT_SESSION_ID>"/);
   assert.match(h.get("invite-text").value, /--session-id '<CURRENT_SESSION_ID>'/);
   assert.match(h.get("invite-text").value, /所有后续 MCP 调用都携带相同 session_id/);
@@ -296,11 +300,51 @@ test("local invitation pins CLI to this checkout even when opened by invitation"
   assert.equal(h.ui.state.admin, "", "Opening an invitation need not replace its existing identity");
 });
 
-test("a missing local CLI path never falls back to the live global installation", async () => {
+test("portable commands work without exposing or depending on a server CLI path", async () => {
   const h = await browser({origin: "http://127.0.0.1:8789"});
   h.get("invite").onclick();
-  assert.match(h.get("invite-text").value, /本地 CLI 路径尚未确认/);
+  assert.match(h.get("invite-text").value, /在运行 AirRelay 的项目目录执行/);
+  assert.match(h.get("invite-text").value, /python3 local_dev.py room join work/);
   assert.doesNotMatch(h.get("invite-text").value, /\nairelay room join/);
+});
+
+test("local room links, join and recovery instructions contain no keys", async () => {
+  const h = await browser({origin: "http://127.0.0.1:8789", hash: "#room=work", handle: call => {
+    if (call.path === "/api/local-session") return {admin_token: "automatic-session", cli_command: "python relay.py", local_join: true};
+    if (call.path.endsWith("/state")) return {room: "work", members: [], security: {policy: "trusted-local"}, member_count: 0, max_members: 8, invite: "internal-invite"};
+  }});
+  assert.equal(h.ui.state.admin, "automatic-session");
+  assert.ok(!h.get("login-dialog").open);
+  h.get("invite").onclick();
+  assert.equal(h.get("invite-link").value, "http://127.0.0.1:8789/#room=work");
+  assert.doesNotMatch(h.get("invite-text").value, /invite=|--invite|internal-invite|automatic-session/);
+  assert.match(h.get("invite-text").value, /session_id="<CURRENT_SESSION_ID>"/);
+  h.ui.showRecovery({name: "worker", connection: "network", protocol_version: 2});
+  assert.doesNotMatch(h.get("recovery-text").value, /invite=|--invite|internal-invite|automatic-session/);
+});
+
+test("local connection failure offers retry instead of a key input", async () => {
+  let ready = false;
+  const h = await browser({origin: "http://127.0.0.1:8789", hash: "", handle: call => {
+    if (call.path === "/api/local-session") return ready ? {admin_token: "automatic-session", local_join: true} : {ok: false, error: "offline"};
+    if (call.path.endsWith("/state")) return {room: "work", members: [], security: {policy: "trusted-local"}, member_count: 0, max_members: 8};
+  }});
+  assert.ok(h.get("connection-dialog").open);
+  assert.ok(!h.get("login-dialog").open);
+  ready = true;
+  await h.get("retry-connection").onclick();
+  assert.ok(!h.get("connection-dialog").open);
+  assert.equal(h.ui.state.admin, "automatic-session");
+  assert.ok(h.calls.some(call => call.path === "/api/rooms/work/history"));
+});
+
+test("local bootstrap does not remove invitations from protected rooms", async () => {
+  const h = await browser({origin: "http://127.0.0.1:8789", handle: call => {
+    if (call.path === "/api/local-session") return {admin_token: "automatic-session", cli_command: "python relay.py", local_join: true};
+    if (call.path.endsWith("/state")) return {room: "work", members: [], security: {policy: "chat-only"}, member_count: 0, max_members: 8};
+  }});
+  h.get("invite").onclick();
+  assert.match(h.get("invite-text").value, /--invite='invitation'/);
 });
 
 test("file preview shows startup help without loading the chat runtime", () => {
@@ -394,4 +438,117 @@ test("local owner collaboration view uses owner credentials and does not claim m
   assert.equal(h.calls.find(c=>c.path.endsWith('/activity')).token,'owner-token');
   assert.equal(h.calls.find(c=>c.path.endsWith('/activityprogress')).token,'owner-token');
   assert.ok(!h.calls.some(c=>/\/(receive|ack)$/.test(c.path)));
+});
+
+test("room close, reopen, delete and restore stay scoped to the selected room", async () => {
+  const storage = new Map([["chat.admin", "owner"]]); member(storage);
+  let roomState = "open";
+  const h = await browser({storage, handle: call => {
+    if (call.path === "/api/rooms") return {room_management: true, rooms: (roomState === "deleted") === !!call.data.include_deleted ? [{room: "work", room_state: roomState, member_count: 2}] : []};
+    if (call.path.endsWith("/state")) return {room: "work", room_state: roomState, room_management: true, members: [{name: "you"}, {name: "codex"}], member_count: 2, max_members: 8};
+    const action = call.path.split("/").at(-1);
+    if (["close", "reopen", "delete", "restore"].includes(action)) { roomState = {close: "closed", reopen: "open", delete: "deleted", restore: "closed"}[action]; return {room_state: roomState}; }
+  }});
+  h.get("close-room").onclick();
+  assert.equal(roomState, "open", "Opening a confirmation must not close the room");
+  await h.get("room-action-form").onsubmit({preventDefault() {}});
+  assert.equal(roomState, "closed");
+  assert.ok(h.get("composer").hidden); assert.ok(h.get("invite").disabled);
+  await h.get("reopen-room").onclick();
+  assert.equal(roomState, "open"); assert.ok(!h.get("composer").hidden);
+  h.get("delete-room").onclick();
+  await h.get("room-action-form").onsubmit({preventDefault() {}});
+  assert.equal(h.ui.state.room, ""); assert.ok(!h.get("show-deleted").hidden);
+  assert.ok(storage.get("chat.human.work"), "Recoverable deletion keeps the browser's original member identity");
+  await h.get("show-deleted").onclick();
+  assert.equal(h.ui.state.rooms[0].room_state, "deleted");
+  await h.ui.selectRoom("work");
+  assert.ok(!h.get("restore-room").hidden); assert.ok(h.get("composer").hidden);
+  await h.get("restore-room").onclick();
+  assert.equal(roomState, "closed"); assert.equal(h.ui.state.room, "");
+});
+
+test("switching rooms while a confirmation is open never deletes the new room", async () => {
+  const storage = new Map([["chat.admin", "owner"]]);
+  const h = await browser({storage});
+  h.get("delete-room").onclick();
+  await h.ui.selectRoom("other", "other-invite");
+  await h.get("room-action-form").onsubmit({preventDefault() {}});
+  assert.ok(h.calls.some(call => call.path === "/api/rooms/work/delete"));
+  assert.ok(!h.calls.some(call => call.path === "/api/rooms/other/delete"));
+  assert.equal(h.ui.state.room, "other");
+});
+
+test("invitation uses each installation's actual room address without personal paths", async () => {
+  for (const origin of ["http://127.0.0.1:8795", "http://localhost:9010"]) {
+    const h = await browser({origin, hash: "#room=work", handle: call => {
+      if (call.path === "/api/local-session") return {admin_token: "local", local_join: true, cli_command: "C:\\Users\\someone\\Python.exe C:\\Users\\someone\\AirRelay\\relay.py"};
+      if (call.path.endsWith("/state")) return {room: "work", security: {policy: "trusted-local"}, members: [], member_count: 0, max_members: 8};
+    }});
+    h.get("invite").onclick();
+    assert.ok(h.get("invite-text").value.includes(`server="${origin}"`));
+    assert.doesNotMatch(h.get("invite-text").value, /someone|\/Users\/|C:\\|8789|--data-dir|invite=/);
+    h.ui.showRecovery({name: "worker", connection: "network", protocol_version: 2});
+    assert.doesNotMatch(h.get("recovery-text").value, /someone|\/Users\/|C:\\|--data-dir/);
+    assert.match(h.get("recovery-text").value, /py -3 local_dev.py/);
+  }
+});
+
+function localOwner({rooms = [], deleted = [], members = []} = {}) {
+  const joined = new Set(members);
+  return call => {
+    if (call.path === "/api/local-session") return {admin_token: "automatic-session", local_join: true};
+    if (call.path === "/api/rooms" && call.data.action === "create") { rooms.push(call.data.room); return {room: call.data.room}; }
+    if (call.path === "/api/rooms") return {rooms: (call.data.include_deleted ? deleted : rooms).map(room => ({room})), room_management: true};
+    if (call.path.endsWith("/humanjoin")) { joined.add(call.data.name); return {status: "joined"}; }
+    if (call.path.endsWith("/state")) return {members: [...joined].map(name => ({name})), security: {policy: "trusted-local"}, member_count: joined.size, max_members: 8};
+  };
+}
+
+test("first local visit creates a room and joins the owner without dialogs", async () => {
+  const h = await browser({origin: "http://127.0.0.1:8789", hash: "", handle: localOwner()});
+  for (let i = 0; i < 5; i++) await tick();
+  assert.ok(h.calls.some(call => call.data.action === "create" && call.data.room === "work"));
+  assert.equal(h.ui.state.room, "work");
+  const join = h.calls.find(call => call.path === "/api/rooms/work/humanjoin");
+  assert.equal(join.data.name, "you");
+  assert.equal(h.ui.state.human.joined, true);
+  assert.ok(!h.get("create-dialog").open && !h.get("join-dialog").open);
+  assert.equal(JSON.parse(h.local.get("chat.human.work")).name, "you", "the local owner keeps its identity across tabs");
+  assert.ok(!h.storage.has("chat.human.work"));
+  const reopened = await browser({origin: "http://127.0.0.1:8789", hash: "", local: h.local, handle: localOwner({rooms: ["work"], members: ["you"]})});
+  for (let i = 0; i < 5; i++) await tick();
+  assert.ok(!reopened.calls.some(call => call.path.endsWith("/humanjoin")), "a saved identity is reused, not rejoined");
+});
+
+test("auto-join picks a free name and never recreates deleted rooms", async () => {
+  const taken = await browser({origin: "http://127.0.0.1:8789", hash: "", handle: localOwner({rooms: ["work"], members: ["you"]})});
+  for (let i = 0; i < 5; i++) await tick();
+  assert.equal(taken.calls.find(call => call.path.endsWith("/humanjoin")).data.name, "you-2");
+  const emptied = await browser({origin: "http://127.0.0.1:8789", hash: "", handle: localOwner({deleted: ["old"]})});
+  for (let i = 0; i < 5; i++) await tick();
+  assert.ok(!emptied.calls.some(call => call.data.action === "create"));
+  assert.equal(emptied.ui.state.room, "");
+});
+
+test("network visitors are not joined automatically", async () => {
+  const h = await browser();
+  for (let i = 0; i < 5; i++) await tick();
+  assert.ok(!h.calls.some(call => /\/(human)?join$/.test(call.path)));
+});
+
+test("room names with Chinese characters are URL-encoded in API paths", async () => {
+  const h = await browser({origin: "http://127.0.0.1:8789", hash: "", handle: localOwner({rooms: ["新项目"]})});
+  for (let i = 0; i < 5; i++) await tick();
+  assert.equal(h.ui.state.room, "新项目");
+  assert.ok(h.calls.some(call => call.path === "/api/rooms/%E6%96%B0%E9%A1%B9%E7%9B%AE/state"));
+  assert.ok(!h.calls.some(call => call.path.includes("新项目")));
+});
+
+test("a room only remembered by the tab is skipped once it no longer exists", async () => {
+  const storage = new Map([["chat.room", "gone"]]);
+  const h = await browser({origin: "http://127.0.0.1:8789", hash: "", storage, handle: localOwner({rooms: ["work"]})});
+  for (let i = 0; i < 5; i++) await tick();
+  assert.equal(h.ui.state.room, "work");
+  assert.ok(!h.calls.some(call => call.path.startsWith("/api/rooms/gone/")));
 });

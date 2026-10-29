@@ -36,6 +36,14 @@ class ReleaseTests(unittest.TestCase):
         self.servers = []
         self.addCleanup(self.stop_servers)
 
+    def test_double_click_launchers_ship_ready_to_run(self):
+        with zipfile.ZipFile(self.archive) as bundle:
+            command = bundle.getinfo("local-ai-relay/启动 AirRelay.command")
+            batch = bundle.read("local-ai-relay/启动 AirRelay.bat")
+        self.assertTrue((command.external_attr >> 16) & 0o111, "macOS launcher must stay executable")
+        self.assertIn(b"local_dev.py serve --open", batch)
+        self.assertIn(b"\r\n", batch, "cmd.exe needs CRLF line endings")
+
     def stop_servers(self):
         for process in self.servers:
             if process.poll() is None:

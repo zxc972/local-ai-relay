@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import sys
 import time
+import unicodedata
 from pathlib import Path
 
 if __package__:
@@ -29,9 +30,16 @@ RULES = (
 )
 
 
+# Letters in any script (e.g. Chinese), digits, _ and -. No dots, spaces or
+# separators, so a name is always a single safe folder and URL path segment.
+ROOM_PATTERN = r"[^\W_][\w-]{0,47}"
+
+
 def room_name(value):
-    if not isinstance(value, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,47}", value):
-        raise RelayError("房间名只支持 1–48 位英文字母、数字、下划线和连字符")
+    if isinstance(value, str):
+        value = unicodedata.normalize("NFC", value)
+    if not isinstance(value, str) or not re.fullmatch(ROOM_PATTERN, value):
+        raise RelayError("房间名为 1–48 位中文、字母、数字、下划线或连字符")
     return value
 
 

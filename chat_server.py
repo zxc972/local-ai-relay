@@ -13,22 +13,26 @@ import subprocess
 import sys
 import threading
 import time
+import unicodedata
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlencode, urlsplit
+from urllib.parse import unquote, urlencode, urlsplit
 
 if __package__:
     from .chat_delivery import COALESCE_SECONDS, ids
     from .chatroom import ChatRoom, MAX_MEMBERS, member_name
+    from .chat_safety import local_trusted
     from .core import RelayError, Store, integer, private_write
-    from .room_cli import room_name
+    from .room_cli import ROOM_PATTERN, room_name
 else:
     from chat_delivery import COALESCE_SECONDS, ids
     from chatroom import ChatRoom, MAX_MEMBERS, member_name
+    from chat_safety import local_trusted
     from core import RelayError, Store, integer, private_write
-    from room_cli import room_name
+    from room_cli import ROOM_PATTERN, room_name
 
 STATIC = Path(__file__).resolve().parent / "static"
+DEFAULT_PORT = 8789
 HISTORY_BYTE_LIMIT = 1_000_000
 COLLABORATION_VISIBLE = "(recipient IS NULL OR (sender_kind='agent' AND recipient_kind='agent'))"
 
@@ -60,7 +64,7 @@ def wire(result):
 
 
 class ChatService:
-    def __init__(self, data_dir, public_url="http://127.0.0.1:8787"):
+    def __init__(self, data_dir, public_url=f"http://127.0.0.1:{DEFAULT_PORT}"):
         self.store = Store(data_dir)
         self.public_url = server_url(public_url)
         if __package__:
@@ -80,7 +84,7 @@ class ChatService:
         self.changed = threading.Event()
         self.stopping = threading.Event()
 
-    def room(self, name, create=False):
+    def room(self, name, create=False, include_deleted=False):
         name = room_name(name)
         with self.lock:
             if name not in self.rooms:
@@ -98,7 +102,7 @@ class ChatService:
             if create:
                 chat.create()
             with chat.store.transaction() as db:
-                chat.require_room(db)
+                chat.require_room(db, include_deleted=include_deleted)
                 db.execute("INSERT OR IGNORE INTO meta VALUES('chat:invite',?)", (secrets.token_urlsafe(32),))
             return chat
 
@@ -124,8 +128,8 @@ class ChatService:
                            "seen=excluded.seen,state=excluded.state", (row["name"], time.time(), state))
         return row["name"], owner
 
-    def snapshot(self, chat):
-        value = chat.status()
+    def snapshot(self, chat, include_deleted=False):
+        value = chat.status(include_deleted=include_deleted)
         with contextlib.closing(chat.store.connect()) as db:
             seen = {r["name"]: r for r in db.execute("SELECT * FROM chat_network_seen")}
             identities = {r["name"]: r for r in db.execute("SELECT name,owner,protocol_version,pending_seq FROM chat_members")}
@@ -146,9 +150,11 @@ class ChatService:
                     state = "viewing"
                 if online and identity["pending_seq"] is not None and last["state"] not in ("recovery_wait", "recovering", "needs_attention"):
                     state = "processing"
+            if value["room_state"] != "open":
+                state, listening = "room_" + value["room_state"], False
             members.append({"name": member["name"], "state": state, "listening": listening,
                             "connection": "network" if network else "local", "protocol_version": identity["protocol_version"]})
-        return {"room": chat.name, "members": members, "member_count": len(members),
+        return {"room": chat.name, "room_state": value["room_state"], "members": members, "member_count": len(members),
                 "max_members": MAX_MEMBERS, "latest_seq": value["latest_seq"], "security": chat.security()}
 
     def progress(self, chat, name, message_ids, collaboration=False):
@@ -265,23 +271,34 @@ class ChatService:
             if data.get("action") == "create":
                 chat = self.room(data.get("room"), create=True)
                 return {**self.snapshot(chat), **self.invitation(chat)}
-            if data:
+            if set(data) - {"include_deleted"} or ("include_deleted" in data and not isinstance(data["include_deleted"], bool)):
                 raise RelayError("无效操作")
             rooms = []
             for folder in sorted((self.store.root / "rooms").glob("*")):
-                if folder.is_dir() and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,47}", folder.name):
+                if folder.is_dir() and re.fullmatch(ROOM_PATTERN, unicodedata.normalize("NFC", folder.name)):
                     try:
-                        chat = self.room(folder.name)
-                        rooms.append({**self.snapshot(chat), **self.invitation(chat)})
+                        chat = self.room(folder.name, include_deleted=True)
+                        snapshot = self.snapshot(chat, include_deleted=True)
+                        if (snapshot["room_state"] == "deleted") == bool(data.get("include_deleted")):
+                            rooms.append({**snapshot, **self.invitation(chat)})
                     except RelayError as error:
                         if error.status != 404:
                             raise
-            return {"rooms": rooms, "server": self.public_url, "max_members": MAX_MEMBERS}
-        match = re.fullmatch(r"/api/rooms/([A-Za-z0-9_-]+)/([a-z]+)", path)
+            return {"rooms": rooms, "server": self.public_url, "max_members": MAX_MEMBERS, "room_management": True}
+        match = re.fullmatch(r"/api/rooms/([^/]+)/([a-z]+)", path)
         if not match:
             raise RelayError("接口不存在", 404)
-        room_id, action = match.groups()
-        chat = self.room(room_id)
+        room_id, action = unquote(match.group(1)), match.group(2)
+        if action in ("close", "reopen", "delete", "restore"):
+            if not self.is_admin(token):
+                raise RelayError("只有用户可以管理房间", 403)
+            if data:
+                raise RelayError("房间操作不接受额外参数")
+            chat = self.room(room_id, include_deleted=True)
+            result = chat.change_state(action)
+            self.changed.set()
+            return result
+        chat = self.room(room_id, include_deleted=self.is_admin(token))
         if action in ("activity", "activityprogress"):
             # Separate owner view: never widen an Agent's history/receive permissions.
             if not self.is_admin(token) or not chat.trusted_local():
@@ -336,7 +353,8 @@ class ChatService:
                 if set(data) != {"message_ids"}:
                     raise RelayError("消息状态需要 message_ids")
                 return self.progress(chat, name, data["message_ids"])
-            result = self.snapshot(chat)
+            result = self.snapshot(chat, include_deleted=self.is_admin(token))
+            result["room_management"] = self.is_admin(token)
             result["collaboration_view"] = self.is_admin(token) and chat.trusted_local()
             if self.is_admin(token):
                 result.update(self.invitation(chat))
@@ -411,7 +429,8 @@ class BoundedHTTPServer(ThreadingHTTPServer):
         super().server_close()
 
 
-def create_server(data_dir, host="127.0.0.1", port=8787, public_url=None, cert=None, key=None):
+def create_server(data_dir, host="127.0.0.1", port=None, public_url=None, cert=None, key=None):
+    port = DEFAULT_PORT if port is None else port
     if bool(cert) != bool(key):
         raise RelayError("HTTPS 需要同时指定 --cert 和 --key")
     if host not in ("127.0.0.1", "localhost") and not public_url:
@@ -454,6 +473,7 @@ def create_server(data_dir, host="127.0.0.1", port=8787, public_url=None, cert=N
                 assets = {"/": ("chat.html", "text/html; charset=utf-8"),
                           "/bootstrap.js": ("bootstrap.js", "application/javascript; charset=utf-8"),
                           "/chat.js": ("chat.js", "application/javascript; charset=utf-8"),
+                          "/airrelay.svg": ("airrelay.svg", "image/svg+xml"),
                           "/chat.css": ("chat.css", "text/css; charset=utf-8")}
                 if path == "/health":
                     self.respond(200, {"ok": True, "service": "ai-chatroom", "max_members": MAX_MEMBERS,
@@ -465,6 +485,14 @@ def create_server(data_dir, host="127.0.0.1", port=8787, public_url=None, cert=N
                     raise RelayError("页面不存在", 404)
             except RelayError as error:
                 self.respond(error.status, {"error": str(error)})
+
+        def direct_local(self, browser=False):
+            host_origin = ("https" if cert else "http") + "://" + self.headers.get("Host", "")
+            origins = (service.public_url, host_origin) if browser else (None, service.public_url, host_origin)
+            return (self.server.local_access and self.client_address[0] == "127.0.0.1"
+                    and self.headers.get("Origin") in origins
+                    and self.headers.get("Sec-Fetch-Site") in (None, "same-origin")
+                    and not any(self.headers.get(h) for h in ("Forwarded", "X-Forwarded-For", "X-Forwarded-Host")))
 
         def do_POST(self):
             try:
@@ -492,12 +520,7 @@ def create_server(data_dir, host="127.0.0.1", port=8787, public_url=None, cert=N
                 if urlsplit(self.path).path == "/api/local-session":
                     # Only the directly opened loopback UI can obtain its local
                     # management session. Network/proxy deployments still use invitations.
-                    local_origin = service.public_url
-                    host_origin = ("https" if cert else "http") + "://" + self.headers.get("Host", "")
-                    if (not self.server.local_access or self.client_address[0] != "127.0.0.1"
-                            or self.headers.get("Origin") not in (local_origin, host_origin)
-                            or self.headers.get("Sec-Fetch-Site") not in (None, "same-origin")
-                            or any(self.headers.get(h) for h in ("Forwarded", "X-Forwarded-For", "X-Forwarded-Host"))):
+                    if not self.direct_local(browser=True):
                         raise RelayError("自动进入只用于本机直接访问", 403)
                     if data:
                         raise RelayError("本机会话不接受额外参数")
@@ -505,10 +528,19 @@ def create_server(data_dir, host="127.0.0.1", port=8787, public_url=None, cert=N
                     # Pin invitations to this checkout and data, not a global CLI.
                     argv = [sys.executable, str(STATIC.parent / "relay.py"), "--data-dir", str(service.store.root)]
                     command = subprocess.list2cmdline(argv) if os.name == "nt" else shlex.join(argv)
-                    self.respond(200, {"admin_token": service.admin_token, "cli_command": command})
+                    self.respond(200, {"admin_token": service.admin_token, "cli_command": command,
+                                       "local_join": local_trusted(service.store.root)})
                     return
                 auth = self.headers.get("Authorization", "")
                 token = auth[7:] if auth.startswith("Bearer ") else ""
+                # Local users need no invitation. Only discovery/join use this
+                # shortcut; messages, context and receipts still require the
+                # automatically stored member identity. Never override a bad token.
+                match = re.fullmatch(r"/api/rooms/([^/]+)/(state|join)", urlsplit(self.path).path)
+                if not token and auth in ("", "Bearer ") and match and self.direct_local():
+                    chat = service.room(unquote(match.group(1)))
+                    if chat.trusted_local():
+                        token = service.invitation(chat)["invite"]
                 if not token or not re.fullmatch(r"[A-Za-z0-9_-]{32,128}", token):
                     raise RelayError("需要访问凭据", 401)
                 self.respond(200, service.dispatch(urlsplit(self.path).path, token, data))

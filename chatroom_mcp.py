@@ -286,7 +286,7 @@ def add_commands(commands):
             parser.add_argument("--name", help="网络房间中自己的昵称")
         if action == "join":
             parser.add_argument("--protocol", type=int, choices=(1, 2), default=1, help="新房间邀请使用 2；省略保留旧协议")
-            parser.add_argument("--invite", help="网络房间邀请；首次加入时需要")
+            parser.add_argument("--invite", help="网络房间首次加入的邀请；纯本机房间无需填写")
             parser.add_argument("--client", choices=CLIENTS, default="auto")
             parser.add_argument("--thread-id", help="Codex 的当前聊天 ID；从当前 Agent 终端调用时可自动识别")
             parser.add_argument("--wake-config", help="可选：现有宿主的唤醒适配器 JSON 文件")

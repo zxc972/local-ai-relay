@@ -1,93 +1,47 @@
-# AI 聊天室 · 本地版
+# AirRelay
 
-让你已有的 Agent 在一个房间协作：能力更强的模型负责指导和检查，其他模型执行并反馈，你随时参与。最多 **8 位成员**，不需要额外的模型 API Key。
+让你已有的 Agent（Claude、Codex 等）进到同一个房间里协作：一个负责安排和检查，其他的动手执行，你随时参与。最多 **8 位成员**，不需要模型 API Key、登录或密钥。
 
-默认使用本机端口 **8789**，聊天数据保存在项目目录的 `.local-dev/`。已有其他版本的用户请使用独立目录和端口，详见[开发隔离约定](LOCAL_DEVELOPMENT.md)。
+## 快速开始
 
-## 三步开始
+需要 [Python 3.10+](https://www.python.org/downloads/)，不需要安装其他依赖。
 
-需要 Python 3.10+，运行时只有标准库，无需安装依赖、Docker 或全局命令。先下载本仓库的源码 ZIP 并解压，或者使用 Git：
+1. **下载**：下载本仓库的源码 ZIP 并解压，或者 `git clone https://github.com/zxc972/local-ai-relay.git`。
+2. **启动**：双击项目文件夹里的启动文件，浏览器会自动打开聊天室。
+   - macOS：`启动 AirRelay.command`（第一次如果被系统拦截，右键 → 打开）
+   - Windows：`启动 AirRelay.bat`
+   - 也可以在终端运行 `python3 local_dev.py`（Windows 用 `py -3 local_dev.py`）
+3. **邀请 Agent**：网页已经建好 `work` 房间，你也已经加入。点「邀请 Agent」，选分工，复制加入指令，粘贴到 Agent 已有的对话里发送。它在成员栏显示「等待消息」就接通了。
+4. **开始协作**：在输入框发消息，`@名字` 只发给一个成员；点成员名字可以单独对话。
 
-```console
-git clone https://github.com/zxc972/local-ai-relay.git
-cd local-ai-relay
-```
+可以这样开始：邀请一个「指导者」和一个「执行者」，然后对指导者说：
 
-在解压或克隆后的项目目录打开终端，启动网页：
+> 请按项目目标安排 worker 一次做一项任务，完成并验证后集中反馈，最多三轮后向我汇报整体进展。
 
-**macOS / Linux：**
+## 常见问题
 
-```console
-python3 local_dev.py
-```
+- **怎么停止？** 关闭启动时出现的终端窗口，或在终端按 Ctrl+C。房间和记录会保留，下次启动继续使用。
+- **再次双击会怎样？** 聊天室已在运行时，只会重新打开网页。
+- **数据存在哪？** 项目文件夹下的 `.local-dev/`。换新版本时，把这个文件夹一起复制过去即可保留房间。
+- **Agent 加入了但不回复？** 看它在成员栏的状态：「等待消息」表示已接通；「待启动监听」「自动收件未接通」可以点「恢复」，把恢复指令发回它原来的对话。不是每个客户端都支持自动唤醒，详见[按客户端能力接入](docs/local-collaboration.md#按客户端能力接入)。
+- **打不开网页？** 确认启动窗口还开着，然后访问 `http://127.0.0.1:8789/`。直接双击 `static/chat.html` 只会显示启动说明。
 
-**Windows（PowerShell 或命令提示符）：**
+## 进一步了解
 
-```console
-py -3 local_dev.py
-```
+- [网页使用、分工与接入方式](docs/local-collaboration.md)：单独对话、指导和执行的约定、会话绑定、自动恢复
+- [MCP 配置](docs/local-collaboration.md#简洁工具集)：`python3 local_dev.py mcp-config` 生成配置，加载到支持 MCP 的客户端
+- [状态与中断恢复](docs/chatrooms.md#状态与中断恢复)、[上下文管理](docs/context-management.md)
+- [房间模式与安全边界](docs/chat-safety.md)：本机协作沿用客户端已有权限，网络房间保留手动收件与批准
+- [网络部署](docs/deployment.md)、[受控接单执行器](docs/controlled-executor.md)、[旧接口兼容](docs/legacy-mailbox.md)
+- [本地开发与端口隔离](LOCAL_DEVELOPMENT.md)
 
-若 Windows 没有 `py`，但已安装 Python 3.10+，可用 `python local_dev.py`。浏览器会自动打开；也可手动访问 `http://127.0.0.1:8789/`。终端保持运行，按 Ctrl+C 停止，再次启动会保留原房间与记录。直接双击 `static/chat.html` 只会显示启动说明，不能连接聊天后台。端口已被占用时先确认是否是已有聊天室；需要独立实例可在另一份源码目录运行 `local_dev.py serve --port 8790 --open`。
-
-1. 网页创建房间，例如 `work`。
-2. 点击「邀请 Agent」，选择「指导」「执行」或「自由交流」，把指令发到相应 Agent 已有的对话。
-3. 等成员显示「等待消息」后，加入聊天，`@guide` 说明项目、目标和可操作范围；`@worker` 可直接发给执行成员。
-
-例如：请指导成员检查我的项目，按一次一项任务安排执行成员修改并验证，最多三轮后汇报。分工是提示约定，不增加新的权限或调度系统；加入本身不会自动开始任务。
-
-点击成员名字，右侧打开你和它的单独对话，发送对象固定为该成员；切换成员时保留各自草稿。中间按序号、时间、发送方 → 接收方及实际处理回执显示记录。本机房主可看到 Agent 之间的协作消息，你和 Agent 的私聊放在侧栏；网络房间不开放房主旁观。查看记录不会领取或确认 Agent 的消息。
-
-普通客户端对话的进度、日志和回答不会自动发进房间。Agent 需要主动使用聊天室工具回传结果。只想通知一个成员就用 `@` 或 `to`；纯确认消息无需互相回复。
-
-## 接入你的 Agent
-
-支持 MCP 的客户端可先生成配置，再自行加载到该客户端：
-
-```console
-python3 local_dev.py mcp-config
-```
-
-Windows 将示例中的 `python3` 换成 `py -3`。这只生成当前副本的配置，不修改现用客户端。默认只提供 9 个日常工具：创建、加入、发送、收件、确认、上下文、检查点、状态、离开。
-
-只有终端工具也可以使用网页生成的 CLI 指令。本机网页将命令指向当前副本，避免误调用全局安装的旧版本。
-
-多条 Agent 对话分别使用固定 `session_id`（CLI 为 `--session-id`），每次收发和上下文恢复沿用同一值。新邀请已包含说明，后台通知会自动带回绑定。不同会话不复用成员凭据；旧会话保持兼容、不自动迁移。各组需要连群发也隔离时，分别创建房间。详见[会话绑定与边界](docs/local-collaboration.md#多会话绑定)。
-
-接入按客户端能力选择，昵称可以是任何 Agent：
-
-| 客户端能力 | 接入方式 |
-| --- | --- |
-| 已有会话唤醒适配 | `client=auto`，以返回状态为准 |
-| 原生后台任务完成后能通知当前聊天 | `client=background-task`，按返回说明启动一次后台任务 |
-| 有自己的消息回调程序 | CLI `--wake-config` 配置通用命令适配 |
-| 没有自动唤醒能力 | `client=manual`，需要时收件 |
-
-空闲由普通后台进程等待，不调用模型。收到通知才收件，处理后继续等待。**登记成功不等于后台已经接通**；界面会显示待启动、未接通和中断状态。WorkBuddy、豆包等具体客户端仍需实测其通知能力，不能只凭支持 MCP 就认定能自动聊天。详见[通用接入与协作](docs/local-collaboration.md)。
-
-## 保持上下文简短
-
-新邀请使用 v2：批量收件，按消息 ID 确认；Agent 普通群发不会唤醒所有 Agent。只回传结果、验证证据、必要修正和阻碍。关键进展保存个人检查点，需要时按预算恢复，避免重复附上完整历史。见[上下文管理](docs/context-management.md)。
-
-中断后有未确认操作时，先核对实际结果，不自动重做。回执区分已发送、已领取、已确认处理。见[状态与恢复](docs/chatrooms.md#状态与中断恢复)。
-
-绑定会话支持[自动恢复](docs/local-collaboration.md#自动恢复)：工作前预挂下一次收件；回调监听子进程异常退出自动重启；漏收件/回执时发送有次数上限的核对提醒。恢复不会自动确认或重做任务，没有未解决消息时不唤醒模型。现有未绑定会话不自动迁移。
-
-本机协作沿用你为客户端配置的权限，不另加每条消息审批，也不修改宿主权限。聊天室消息不能扩大用户授权；它不是原生 Agent 工具的沙箱。
-
-## 开发与高级功能
+## 开发
 
 ```console
 python3 -m unittest discover -s tests -v
-node --test tests/test_pi_extension.mjs tests/test_chat_ui.mjs
+node --test tests/*.mjs
 ```
 
-测试使用临时数据、端口及模拟宿主，不能代替真实客户端的端到端验证。完整接口仍可用 `python3 relay.py --help` 查看；`python3 relay.py mcp-config` 生成完整 MCP 配置。`local_dev.py` 的简洁入口不加载旧等待、操作批准和接单工具。
-
-- [本地开发与端口隔离](LOCAL_DEVELOPMENT.md)
-- [网络部署](docs/deployment.md)：按需启用，网络房间保留保护。
-- [受控接单执行器](docs/controlled-executor.md)：独立高级功能。
-- [旧接口兼容](docs/legacy-mailbox.md)
-
-当前功能位于本仓库 `main` 源码中，尚未发布新版安装包；已发布的 v0.3.0 是旧版 sender/receiver 邮箱。先按上述源码方式启动，不要依赖旧版安装包。Windows/macOS 的自动化测试与具体 Agent 的真实自动唤醒验收是两回事，后者以客户端接入结果为准。
+测试使用临时数据、端口和模拟宿主，不能代替真实客户端的端到端验证。完整接口用 `python3 relay.py --help` 查看。当前功能尚未发布新版安装包；已发布的 v0.3.0 是旧版 sender/receiver 邮箱。
 
 MIT License.

@@ -1,5 +1,6 @@
 include LICENSE README.md CONTRIBUTING.md pyproject.toml .gitignore
 include LOCAL_DEVELOPMENT.md AGENTS.md
+include "启动 AirRelay.command" "启动 AirRelay.bat"
 recursive-include static *
 recursive-include extensions *.ts
 recursive-include tests *.py *.mjs

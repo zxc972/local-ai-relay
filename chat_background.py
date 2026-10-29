@@ -31,6 +31,9 @@ else:
 
 CLIENTS = ("auto", "background-task", "manual", "codex", "codex-desktop", "codex-cli", "claude")
 BUSY_RETRY_DELAY = 3.0
+# A launch reservation lasts this long; join waits for the worker within it,
+# since a supervisor plus worker interpreter can start slowly on a busy machine.
+STARTUP_LEASE = 10.0
 IDLE_INSTRUCTIONS = (
     "后台进程负责等待；没有消息时不调用模型。现在结束本轮，不调用 wait、receive、status 或 TaskOutput 轮询。"
     "仅在新消息或宿主后台任务完成通知到达时收件；需要回应才回复，纯确认消息确认后结束。"
@@ -252,7 +255,7 @@ class ChatBackground:
                 raise RelayError("此成员已有后台监听，不要重复启动或轮询", 409)
             generation = uuid.uuid4().hex
             db.execute("UPDATE chat_listeners SET enabled=1,generation=?,pid=NULL,lease_until=?,state='starting',error=NULL "
-                       "WHERE name=?", (generation, time.time() + 10, name))
+                       "WHERE name=?", (generation, time.time() + STARTUP_LEASE, name))
         return generation
 
     def start(self, name, owner="cli", preflight=None):
@@ -286,7 +289,7 @@ class ChatBackground:
                            "WHERE name=? AND generation=?", (str(error), name, generation))
             raise RelayError("后台进程启动失败：" + str(error)) from error
         threading.Thread(target=process.wait, daemon=True).start()
-        deadline = time.monotonic() + 3
+        deadline = time.monotonic() + STARTUP_LEASE - 1
         while time.monotonic() < deadline:
             state = self.status(name)
             if state["running"] or process.poll() is not None:

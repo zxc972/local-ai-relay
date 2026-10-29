@@ -2,31 +2,33 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>AI 聊天室 · 本地开发版</title><link rel="stylesheet" href="./chat.css"><script src="./bootstrap.js" defer></script>
+  <title>AirRelay · AI 聊天室</title><link rel="icon" href="./airrelay.svg" type="image/svg+xml"><link rel="stylesheet" href="./chat.css"><script src="./bootstrap.js" defer></script>
 </head>
 <body>
   <section id="file-help" class="file-help" hidden>
-    <div class="large-mark">✳</div><h1>请从本地服务打开聊天室</h1>
+    <img class="large-mark relay-icon" src="./airrelay.svg" alt="AirRelay"><h1>打开 AirRelay</h1>
     <p>你打开的是页面文件。聊天、成员和消息需要本地服务运行。</p>
     <a class="primary" href="http://127.0.0.1:8789/">打开本地聊天室</a>
     <p class="small">如果打不开，请先在项目目录的终端运行：</p>
     <pre>python3 local_dev.py</pre>
-    <small>开发版使用 8789 端口。</small>
+    <small>macOS / Linux 使用上面的命令；Windows PowerShell 使用 py -3 local_dev.py。默认端口 8789。</small>
   </section>
   <div id="chat-app" class="shell">
     <aside class="sidebar">
-      <a class="brand" href="/" aria-label="AI 聊天室首页"><span class="brand-mark">a<span>i</span></span><span>AI 聊天室</span></a>
+      <a class="brand" href="/" aria-label="AirRelay 首页"><img class="brand-mark" src="./airrelay.svg" alt=""><span>AirRelay</span></a>
       <div class="section-label"><span>我的房间</span><button id="new-room" class="icon" aria-label="创建房间">＋</button></div>
       <nav id="rooms" aria-label="房间列表"></nav>
+      <button id="show-deleted" class="trash-toggle" hidden>已删除的房间</button>
       <div class="sidebar-bottom"><span class="dot"></span><span id="connection">正在连接</span></div>
     </aside>
     <main>
-      <header class="topbar"><div class="crumb">本地开发版 <span>/</span> <strong id="room-crumb">欢迎</strong></div></header>
+      <header class="topbar"><div class="crumb">AirRelay <span>/</span> <strong id="room-crumb">欢迎</strong></div></header>
       <section id="welcome" class="welcome">
-        <div class="large-mark">✳</div><h1>让你的 Agent 一起工作</h1><p>一个负责指导，一个负责执行，你随时参与。</p><button id="welcome-create" class="primary">创建房间</button><small>使用已有 Agent · 最多 8 位成员</small>
+        <img class="large-mark relay-icon" src="./airrelay.svg" alt=""><h1>让你的 Agent 一起工作</h1><p>一个负责指导，一个负责执行，你随时参与。</p><button id="welcome-create" class="primary">创建房间</button><small>使用已有 Agent · 最多 8 位成员</small>
       </section>
       <section id="room-view" class="room-view" hidden>
-        <div class="room-heading"><div><h1><span class="hash">#</span> <span id="room-title"></span></h1><p id="safety-note" class="safety-note"></p></div><button id="invite" class="secondary">↗ 邀请 Agent</button></div>
+        <div class="room-heading"><div><h1><span class="hash">#</span> <span id="room-title"></span></h1><p id="safety-note" class="safety-note"></p></div><div class="room-actions"><button id="invite" class="secondary">↗ 邀请 Agent</button><details id="room-management" class="room-management" hidden><summary aria-label="管理房间">⋯</summary><div class="room-menu"><button id="close-room">关闭房间</button><button id="reopen-room" hidden>重新打开</button><button id="delete-room" class="danger">删除房间</button><button id="restore-room" hidden>恢复房间</button></div></details></div></div>
+        <p id="room-state-note" class="room-state-note" role="status" hidden></p>
         <div class="participants"><div id="members" class="members"></div><span id="capacity" class="capacity">0 / 8</span></div>
         <div class="timeline-heading"><h2 id="timeline-title">房间记录</h2><span id="timeline-note">点击成员名字，打开单独对话</span></div>
         <div id="conversation" class="conversation" role="log" aria-label="聊天记录" aria-live="polite">
@@ -46,17 +48,23 @@
       <form id="direct-composer" hidden><label id="direct-recipient" for="direct-message"></label><textarea id="direct-message" rows="3" maxlength="100000" placeholder="发送给这个成员…" required></textarea><div class="direct-send-row"><span>仅发送给当前成员</span><button id="direct-send" type="submit" class="send" aria-label="发送私聊">↑</button></div></form></div>
     </aside>
   </div>
-  <dialog id="create-dialog"><form id="create-form"><div class="dialog-heading"><h2>创建聊天室</h2><button type="button" class="icon" data-close="create-dialog" aria-label="关闭">×</button></div><label for="room-name">房间名称</label><input id="room-name" placeholder="例如 work" pattern="[A-Za-z0-9][A-Za-z0-9_-]{0,47}" maxlength="48" required autocomplete="off"><small>字母、数字、_ 或 -</small><button class="primary wide" type="submit">创建房间</button></form></dialog>
+  <dialog id="create-dialog"><form id="create-form"><div class="dialog-heading"><h2>创建聊天室</h2><button type="button" class="icon" data-close="create-dialog" aria-label="关闭">×</button></div><label for="room-name">房间名称</label><input id="room-name" placeholder="例如 新项目" maxlength="48" required autocomplete="off"><small>中文、字母、数字、_ 或 -</small><button class="primary wide" type="submit">创建房间</button></form></dialog>
   <dialog id="join-dialog"><form id="join-form"><div class="dialog-heading"><h2>加入聊天</h2><button type="button" class="icon" data-close="join-dialog" aria-label="关闭">×</button></div><label for="nickname">你的昵称</label><input id="nickname" value="you" pattern="[A-Za-z0-9][A-Za-z0-9_.-]{0,63}" maxlength="64" required autocomplete="off"><button class="primary wide" type="submit">加入房间</button></form></dialog>
   <dialog id="invite-dialog" class="invite-dialog">
     <div class="dialog-heading"><h2>邀请 Agent</h2><button class="icon" data-close="invite-dialog" aria-label="关闭">×</button></div>
-    <p>复制指令，发到 Agent 已有的对话里。</p>
-    <div class="invite-options"><div><label for="invite-role">分工</label><select id="invite-role"><option value="member">自由交流</option><option value="guide">指导 · 规划与检查</option><option value="worker">执行 · 完成与反馈</option></select></div><div><label for="invite-name">成员昵称</label><input id="invite-name" value="agent" maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9_.-]{0,63}" autocomplete="off"></div></div>
-    <p id="invite-hint" class="small">分工只是协作约定；加入后等待你给任务。</p>
-    <textarea id="invite-text" rows="9" readonly aria-label="Agent 加入指令"></textarea><button id="copy-instruction" class="primary wide">复制加入指令</button>
+    <ol class="invite-steps">
+      <li><strong>选分工</strong>
+        <div class="invite-options"><div><label for="invite-role">分工</label><select id="invite-role"><option value="member">普通成员</option><option value="guide">指导者 · 安排和检查工作</option><option value="worker">执行者 · 动手完成任务</option></select></div><div><label for="invite-name">昵称</label><input id="invite-name" value="agent" maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9_.-]{0,63}" autocomplete="off"></div></div>
+        <p id="invite-hint" class="small">加入后等待你的任务。</p></li>
+      <li><strong>复制加入指令</strong><button id="copy-instruction" class="primary wide">复制加入指令</button></li>
+      <li><strong>粘贴到 Agent 的对话里发送</strong><p class="small">Claude、Codex 等已有对话都可以。它出现在成员栏、显示「等待消息」就接通了。</p></li>
+    </ol>
+    <details id="invite-details" class="invite-more"><summary>查看指令内容</summary><textarea id="invite-text" rows="9" readonly aria-label="Agent 加入指令"></textarea></details>
     <details class="invite-more"><summary>分享房间链接</summary><div class="copy-row"><input id="invite-link" readonly aria-label="房间邀请链接"><button id="copy-link" class="secondary">复制链接</button></div><p id="network-note" class="small"></p></details>
   </dialog>
-  <dialog id="login-dialog"><form id="login-form"><h2>打开你的聊天室</h2><label for="admin-token">房主访问密钥</label><input id="admin-token" type="password" autocomplete="off" required><button class="primary wide" type="submit">连接</button></form></dialog>
+  <dialog id="connection-dialog"><h2>正在连接本地聊天室</h2><p>本机使用无需密钥。请确认启动聊天室的终端仍在运行，然后重试。</p><button id="retry-connection" class="primary wide">重新连接</button></dialog>
+  <dialog id="room-action-dialog"><form id="room-action-form"><div class="dialog-heading"><h2 id="room-action-title"></h2><button type="button" class="icon" data-close="room-action-dialog" aria-label="取消">×</button></div><p id="room-action-note"></p><button id="confirm-room-action" class="primary wide" type="submit">确认</button></form></dialog>
+  <dialog id="login-dialog"><form id="login-form"><h2>连接网络聊天室</h2><label for="admin-token">房主访问密钥</label><input id="admin-token" type="password" autocomplete="off" required><button class="primary wide" type="submit">连接</button></form></dialog>
   <dialog id="recovery-dialog" class="invite-dialog"><div class="dialog-heading"><h2 id="recovery-title">恢复收件</h2><button class="icon" data-close="recovery-dialog" aria-label="关闭">×</button></div><p>把指令发到该 Agent 原来的对话中。</p><textarea id="recovery-text" rows="10" readonly aria-label="恢复收件指令"></textarea><button id="copy-recovery" class="primary wide">复制恢复指令</button></dialog>
   <div id="toast" class="toast" role="status" hidden></div>
 </body></html>

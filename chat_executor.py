@@ -113,6 +113,22 @@ def load_policy(path):
     return validate_policy(json.loads(path.read_text(encoding="utf-8")))
 
 
+def docker_env(executable):
+    """Minimal environment: the found CLI's own folders (credential helpers sit
+    beside it) plus the platform's system folders, nothing inherited."""
+    folders = []
+    for folder in (Path(executable).parent, Path(executable).resolve().parent):
+        if str(folder) not in folders:
+            folders.append(str(folder))
+    if os.name == "nt":
+        root = os.environ.get("SystemRoot") or r"C:\Windows"
+        system, env = [root + "\\System32", root], {"SystemRoot": root, "USERPROFILE": str(Path.home())}
+    else:
+        system, env = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"], {"HOME": str(Path.home())}
+    env["PATH"] = os.pathsep.join(folders + [value for value in system if value not in folders])
+    return env
+
+
 class DockerRunner:
     def __init__(self, policy):
         self.policy = validate_policy(dict(policy))
@@ -122,7 +138,7 @@ class DockerRunner:
         self.prefix = [executable, "--context", policy["docker_context"]]
         # Do not allow inherited DOCKER_HOST, SSH agents, tokens or config
         # overrides to redirect the configured daemon or reach the workload.
-        self.env = {"PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin", "HOME": str(Path.home())}
+        self.env = docker_env(executable)
 
     def command(self, args, timeout=15):
         try:

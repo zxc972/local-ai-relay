@@ -65,6 +65,19 @@ class ChatBackgroundTests(unittest.TestCase):
         self.workers.append(result["background"]["pid"])
         return result
 
+    def test_join_waits_for_slow_listener_startup_within_lease(self):
+        # A busy machine can take several seconds to start the supervisor;
+        # join must not report "starting" while the launch lease is still valid.
+        slow = self.data / "slow-start"
+        slow.mkdir()
+        (slow / "sitecustomize.py").write_text(
+            "import sys, time\n"
+            "if sys.argv[:1] and sys.argv[0].endswith('chat_background.py') and '--worker' not in sys.argv:\n"
+            "    time.sleep(4)\n", encoding="utf-8")
+        with patch.dict(os.environ, {"PYTHONPATH": str(slow)}):
+            result = self.start()
+        self.assertEqual(result["background"]["state"], "waiting")
+
     def events(self):
         return [json.loads(line) for line in self.log.read_text(encoding="utf-8").splitlines()] if self.log.exists() else []
 

@@ -130,12 +130,19 @@ class ChatRoom:
         return db.execute("SELECT COALESCE(MAX(seq),0) FROM chat_messages").fetchone()[0]
 
     @staticmethod
-    def require_room(db):
+    def require_room(db, writable=False, include_deleted=False):
         if not db.execute("SELECT 1 FROM meta WHERE key='chat:created_at'").fetchone():
             raise RelayError("聊天室尚未创建；请先 chat_create 或 airelay room create", 404)
+        row = db.execute("SELECT value FROM meta WHERE key='chat:state'").fetchone()
+        state = row[0] if row else "open"
+        if state == "deleted" and not include_deleted:
+            raise RelayError("房间已删除；可由用户从已删除房间中恢复", 410)
+        if writable and state != "open":
+            raise RelayError("房间已关闭，请由用户重新打开后再收发消息", 409)
+        return state
 
     def member(self, db, name, owner):
-        self.require_room(db)
+        self.require_room(db, writable=True)
         row = db.execute("SELECT * FROM chat_members WHERE name=?", (name,)).fetchone()
         if not row or not row["active"]:
             raise RelayError("请先加入聊天室", 409)
@@ -158,6 +165,9 @@ class ChatRoom:
 
     def create(self):
         with self.store.transaction() as db:
+            previous = db.execute("SELECT value FROM meta WHERE key='chat:state'").fetchone()
+            if previous and previous[0] == "deleted":
+                raise RelayError("同名房间在已删除列表中，请先恢复或使用其他名称", 409)
             changed = db.execute("INSERT OR IGNORE INTO meta VALUES('chat:created_at',?)",
                                  (str(time.time()),)).rowcount
         return {"room": self.name, "status": "created" if changed else "exists",
@@ -181,7 +191,7 @@ class ChatRoom:
         integer(protocol_version, "protocol_version", 1, 2)
         background = self.background
         with self.store.transaction() as db:
-            self.require_room(db)
+            self.require_room(db, writable=True)
             previous = db.execute("SELECT * FROM chat_members WHERE name=?", (name,)).fetchone()
             if previous and previous["active"] and previous["session_id"] != session_id and (previous["session_id"] or session_id):
                 raise RelayError("会话绑定不符：使用独立昵称；不能接管正在运行的成员", 409)
@@ -533,10 +543,32 @@ class ChatRoom:
                        ("executor:presence:" + member["member_id"], value))
         return {"status": "recorded"}
 
-    def status(self):
+    def change_state(self, action):
+        transitions = {"close": ("open", "closed"), "reopen": ("closed", "open"),
+                       "delete": (None, "deleted"), "restore": ("deleted", "closed")}
+        if action not in transitions:
+            raise RelayError("无效房间操作")
+        self.background
+        with self.store.transaction() as db:
+            current = self.require_room(db, include_deleted=True)
+            expected, target = transitions[action]
+            if current != target and expected is not None and current != expected:
+                raise RelayError("房间状态已变化，请刷新后操作", 409)
+            db.execute("INSERT INTO meta VALUES('chat:state',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", (target,))
+            if target != "open":
+                # Retain pending receipts and identity. Never mark work done or
+                # kill an Agent's native process when pausing this transport.
+                db.execute("UPDATE chat_members SET wait_id=NULL,waiting_at=NULL,wait_pid=NULL")
+                db.execute("UPDATE chat_listeners SET enabled=0,state='stopped',generation=lower(hex(randomblob(16))),pid=NULL,lease_until=NULL")
+                if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='chat_network_seen'").fetchone():
+                    db.execute("UPDATE chat_network_seen SET state='stopped',watching_until=0")
+                db.execute("DELETE FROM meta WHERE key LIKE 'executor:presence:%'")
+        return {"room": self.name, "room_state": target}
+
+    def status(self, include_deleted=False):
         background = self.background
         with contextlib.closing(self.store.connect()) as db:
-            self.require_room(db)
+            room_state = self.require_room(db, include_deleted=include_deleted)
             members = []
             for row in db.execute("SELECT * FROM chat_members ORDER BY joined_at,name"):
                 listening = self.listening(row)
@@ -551,10 +583,12 @@ class ChatRoom:
                     report = json.loads(presence[0])
                     listening = report["seen"] > time.time() - 15 and report["state"] != "stopped"
                     state = "executor_" + report["state"] if listening else "executor_offline"
+                if room_state != "open":
+                    listening, state = False, "room_" + room_state
                 members.append({"name": row["name"], "joined": bool(row["active"]),
                                 "listening": listening or bg["running"], "state": state, "background": bg,
                                 "executor_reported": bool(presence),
                                 "confirmed_seq": row["confirmed_seq"], "pending_through_seq": row["pending_seq"]})
             count = self.latest(db)
-        return {"room": self.name, "members": members, "latest_seq": count, "security": self.security(),
+        return {"room": self.name, "room_state": room_state, "members": members, "latest_seq": count, "security": self.security(),
                 "member_count": sum(member["joined"] for member in members), "max_members": MAX_MEMBERS}

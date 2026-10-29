@@ -17,6 +17,7 @@ import threading
 import time
 import uuid
 from urllib.error import HTTPError, URLError
+from urllib.parse import quote
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
 if __package__:
@@ -111,7 +112,7 @@ class RemoteChat:
             return dict(db.execute("SELECT * FROM remote_client WHERE id=1").fetchone())
 
     def call(self, action, data=None, token=None):
-        return request(self.server, f"/api/rooms/{self.name}/{action}", token or self.row()["token"], data or {})
+        return request(self.server, f"/api/rooms/{quote(self.name, safe='')}/{action}", self.row()["token"] if token is None else token, data or {})
 
     def local_mode(self, policy=None):
         allowed = bool(self.row()["trusted_local"]) if policy is None else (
@@ -161,9 +162,9 @@ class RemoteChat:
     def join(self, invite=None, client="auto", thread_id=None, wake_config=None, owner="cli", client_name="", protocol_version=1):
         check_target(self.session_id, thread_id, wake_config)
         row = self.row()
-        invite = invite or row["invite"]
-        if not invite:
-            raise RelayError("首次加入需要邀请中的 --invite")
+        invite = invite or row["invite"] or ""
+        if not invite and not loopback_server(self.server):
+            raise RelayError("网络房间首次加入需要邀请中的 --invite")
         trusted = self.local_mode(self.call("state", token=invite).get("security", {}))
         _, mode, config, preflight = resolve_client(client, owner, thread_id, wake_config, client_name, trusted_local=trusted)
         check_target(self.session_id, config=config)
@@ -172,9 +173,6 @@ class RemoteChat:
         encoded = json.dumps(config) if config else None
         if self.busy(row) and (not row["enabled"] or row["mode"] != mode or row["adapter"] != encoded):
             raise RelayError("已有后台监听；先离开并等待退出，再更换唤醒目标", 409)
-        invite = invite or row["invite"]
-        if not invite:
-            raise RelayError("首次加入需要邀请中的 --invite")
         # Persist the credential before sending; an uncertain join can resume the same identity.
         with self.store.transaction() as db:
             db.execute("UPDATE remote_client SET invite=? WHERE id=1", (invite,))
@@ -384,7 +382,7 @@ class RemoteChat:
                     packet = self.call("peek", query)
                     report_recovery = bool(self.session_id and packet.get("recovery_status"))
                 except RelayError as error:
-                    if error.status in (401, 403, 409):
+                    if error.status in (401, 403, 404, 409, 410):
                         with self.store.transaction() as db:
                             db.execute("UPDATE remote_client SET enabled=0,state='stopped',error=? WHERE generation=?", (str(error), generation))
                         return {"status": "stopped", "error": str(error)}

@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from chat_executor import Executor, DockerRunner, RoomTransport, job_content, validate_job, validate_policy, load_policy, JOB_TYPE
+from chat_executor import Executor, DockerRunner, docker_env, RoomTransport, job_content, validate_job, validate_policy, load_policy, JOB_TYPE
 from chatroom import ChatRoom
 from chatroom_mcp import ChatEndpoint
 from chat_remote import RemoteChat, request
@@ -49,6 +49,20 @@ class PolicyTests(unittest.TestCase):
     def test_no_runtime_means_no_host_fallback(self):
         with patch("chat_executor.shutil.which", return_value=None), self.assertRaises(RelayError):
             DockerRunner(policy())
+
+    def test_docker_env_follows_found_cli_without_inheriting(self):
+        with tempfile.TemporaryDirectory() as root, patch.dict(os.environ, {"DOCKER_HOST": "tcp://elsewhere"}):
+            real = Path(root) / "Docker.app" / "bin"
+            real.mkdir(parents=True)
+            (real / "docker").touch()
+            link = Path(root) / "links"
+            link.mkdir()
+            (link / "docker").symlink_to(real / "docker")
+            env = docker_env(str(link / "docker"))
+            folders = env["PATH"].split(os.pathsep)
+            self.assertEqual(folders[:2], [str(link), str(real.resolve())])
+            self.assertNotIn("DOCKER_HOST", env)
+            self.assertEqual(len(folders), len(set(folders)))
 
     def test_config_is_operator_owned(self):
         with tempfile.TemporaryDirectory() as root:
