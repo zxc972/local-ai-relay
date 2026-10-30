@@ -17,5 +17,7 @@ deploy/.env
 *.sqlite3
 *.sqlite3-*
 *.token
+# Private instructions for this machine's development copy.
+AGENTS.md
 # Private verification image contains a test-room invite.
 docs/verification/local-simple-invite.png

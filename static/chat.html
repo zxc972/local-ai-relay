@@ -60,6 +60,7 @@
       <li><strong>粘贴到 Agent 的对话里发送</strong><p class="small">Claude、Codex 等已有对话都可以。它出现在成员栏、显示「等待消息」就接通了。</p></li>
     </ol>
     <details id="invite-details" class="invite-more"><summary>查看指令内容</summary><textarea id="invite-text" rows="9" readonly aria-label="Agent 加入指令"></textarea></details>
+    <details id="mcp-details" class="invite-more" hidden><summary>让 Agent 以后直接用工具接入（可选）</summary><p class="small">在终端运行一次对应命令，之后新开的对话就有 chat_join 等工具；不运行也能用上面的指令加入。</p><textarea id="mcp-text" rows="6" readonly aria-label="MCP 接入命令"></textarea><button id="copy-mcp" class="secondary">复制命令</button></details>
     <details class="invite-more"><summary>分享房间链接</summary><div class="copy-row"><input id="invite-link" readonly aria-label="房间邀请链接"><button id="copy-link" class="secondary">复制链接</button></div><p id="network-note" class="small"></p></details>
   </dialog>
   <dialog id="connection-dialog"><h2>正在连接本地聊天室</h2><p>本机使用无需密钥。请确认启动聊天室的终端仍在运行，然后重试。</p><button id="retry-connection" class="primary wide">重新连接</button></dialog>

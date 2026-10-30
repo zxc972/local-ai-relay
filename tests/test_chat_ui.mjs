@@ -479,19 +479,38 @@ test("switching rooms while a confirmation is open never deletes the new room", 
   assert.equal(h.ui.state.room, "other");
 });
 
-test("invitation uses each installation's actual room address without personal paths", async () => {
-  for (const origin of ["http://127.0.0.1:8795", "http://localhost:9010"]) {
+test("local invitations name this checkout so agents in other folders can join", async () => {
+  const cases = [
+    {origin: "http://127.0.0.1:8795", shell: "posix", cli: "'/Users/someone/AI 作品集/AirRelay/.venv/python' '/Users/someone/AI 作品集/AirRelay/relay.py' --data-dir x", prefix: "'/Users/someone/"},
+    {origin: "http://localhost:9010", shell: "powershell", cli: "C:\\Users\\someone\\Python.exe C:\\Users\\someone\\AirRelay\\relay.py --data-dir x", prefix: "PowerShell：\n& C:\\Users\\someone\\Python.exe"},
+  ];
+  for (const {origin, shell, cli, prefix} of cases) {
     const h = await browser({origin, hash: "#room=work", handle: call => {
-      if (call.path === "/api/local-session") return {admin_token: "local", local_join: true, cli_command: "C:\\Users\\someone\\Python.exe C:\\Users\\someone\\AirRelay\\relay.py"};
+      if (call.path === "/api/local-session") return {admin_token: "local", local_join: true, cli_command: cli, mcp_command: "py mcp_server.py --simple", shell};
       if (call.path.endsWith("/state")) return {room: "work", security: {policy: "trusted-local"}, members: [], member_count: 0, max_members: 8};
     }});
     h.get("invite").onclick();
-    assert.ok(h.get("invite-text").value.includes(`server="${origin}"`));
-    assert.doesNotMatch(h.get("invite-text").value, /someone|\/Users\/|C:\\|8789|--data-dir|invite=/);
+    const text = h.get("invite-text").value;
+    assert.ok(text.includes(`server="${origin}"`));
+    assert.ok(text.includes(`${prefix}`) && text.includes(`${cli} room join work --name agent`));
+    assert.doesNotMatch(text, /local_dev\.py|invite=/);
+    if (shell === "powershell") assert.ok(text.includes(`Git Bash：\n${cli} room join work`));
+    assert.equal(h.get("mcp-details").hidden, false);
+    assert.match(h.get("mcp-text").value, /claude mcp add --scope user airrelay -- py mcp_server.py --simple/);
+    assert.match(h.get("mcp-text").value, /codex mcp add airrelay -- py mcp_server.py --simple/);
     h.ui.showRecovery({name: "worker", connection: "network", protocol_version: 2});
-    assert.doesNotMatch(h.get("recovery-text").value, /someone|\/Users\/|C:\\|--data-dir/);
-    assert.match(h.get("recovery-text").value, /py -3 local_dev.py/);
+    assert.ok(h.get("recovery-text").value.includes(`${cli} room join work --name worker`));
   }
+});
+
+test("network invitations stay free of personal paths", async () => {
+  const h = await browser({origin: "https://chat.example.com", hash: "#room=work&invite=abc", handle: call => {
+    if (call.path.endsWith("/state")) return {room: "work", security: {policy: "chat-only"}, members: [], member_count: 0, max_members: 8};
+  }});
+  h.get("invite").onclick();
+  assert.doesNotMatch(h.get("invite-text").value, /someone|\/Users\/|C:\\|--data-dir/);
+  assert.match(h.get("invite-text").value, /py -3 local_dev.py room join work/);
+  assert.equal(h.get("mcp-details").hidden, true);
 });
 
 function localOwner({rooms = [], deleted = [], members = []} = {}) {

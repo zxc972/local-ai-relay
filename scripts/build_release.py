@@ -9,7 +9,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 FILES = (
-    "LOCAL_DEVELOPMENT.md", "AGENTS.md", "启动 AirRelay.command", "启动 AirRelay.bat",
+    "LOCAL_DEVELOPMENT.md", "启动 AirRelay.command", "启动 AirRelay.bat",
     "README.md", "LICENSE", "CONTRIBUTING.md", "pyproject.toml", "MANIFEST.in",
     "Dockerfile", ".dockerignore", ".gitignore", "bin/airelay",
     "deploy/compose.yaml", "deploy/Caddyfile", "deploy/.env.example",

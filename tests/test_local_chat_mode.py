@@ -1,6 +1,7 @@
 """Public local auto-reception and protected network boundaries; no model calls."""
 import contextlib
 import json
+import os
 import shlex
 from pathlib import Path
 import subprocess
@@ -69,6 +70,9 @@ class LocalChatModeTests(unittest.TestCase):
         prefix = shlex.split(session["cli_command"])
         self.assertEqual(Path(prefix[1]), ROOT / "relay.py")
         self.assertEqual(Path(prefix[3]), self.server.service.store.root)
+        mcp = shlex.split(session["mcp_command"])
+        self.assertEqual((Path(mcp[1]), mcp[-1]), (ROOT / "mcp_server.py", "--simple"))
+        self.assertEqual(session["shell"], "posix" if os.name != "nt" else "powershell")
         with patch("chat_server.secrets.token_urlsafe", return_value="-" + "a" * 42):
             invitation = request(self.url, "/api/rooms", self.server.service.admin_token,
                                  {"action": "create", "room": "dash-test"})["invite"]
@@ -77,7 +81,7 @@ class LocalChatModeTests(unittest.TestCase):
             argv = prefix + ["room", action, "dash-test", "--name", "test-cli", "--server", self.url]
             if action == "join":
                 argv += ["--client", "manual", "--protocol", "2", "--invite=" + invitation]
-            run = subprocess.run(argv, capture_output=True, text=True, timeout=8)
+            run = subprocess.run(argv, capture_output=True, text=True, timeout=8, cwd=self.root)
             self.assertEqual(run.returncode, 0, run.stderr + run.stdout)
             self.assertNotIn("error", json.loads(run.stdout))
 

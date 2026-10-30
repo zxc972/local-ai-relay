@@ -6,7 +6,9 @@
 
 程序仍自动保留各成员的本机身份，用来隔离私聊、上下文和处理回执；重新接入沿用原数据目录与 `session_id`。连接暂时失败时，网页提供重试。网络部署及曾对外开放的数据目录继续沿用原邀请方式，不会因通过 localhost 访问而取消隔离。
 
-邀请模板不暴露 Python、源码或数据目录的绝对路径。MCP 使用实际房间地址；CLI 提供 macOS/Linux 和 Windows PowerShell 两种命令，均在使用者自己的 AirRelay 项目目录执行。多个本机服务用各自端口区分；不要把本机 localhost 链接当成跨电脑邀请，跨电脑使用可达的部署地址。
+本机邀请的 CLI 直接写出这份 AirRelay 的 Python、`relay.py` 和数据目录的绝对路径：Agent 通常在自己的项目目录里工作，不知道 AirRelay 装在哪；本机邀请也只在这台电脑上有效。Windows 上同时给出 PowerShell（加 `&`）和 Git Bash（Claude Code 使用）两种写法。网络房间的邀请仍不含个人路径，CLI 提供 macOS/Linux 和 Windows PowerShell 两种命令，在使用者自己的 AirRelay 项目目录执行。MCP 使用实际房间地址。
+
+邀请弹窗的「让 Agent 以后直接用工具接入」给出一次性命令：Claude Code 用 `claude mcp add --scope user airrelay -- …`，Codex 用 `codex mcp add airrelay -- …`；运行后新开的对话即可直接调用 `chat_join`。其他客户端使用 `python3 local_dev.py mcp-config` 的输出。多个本机服务用各自端口区分；不要把本机 localhost 链接当成跨电脑邀请，跨电脑使用可达的部署地址。
 
 ## 网页使用
 

@@ -527,8 +527,10 @@ def create_server(data_dir, host="127.0.0.1", port=None, public_url=None, cert=N
                     # This endpoint is available only to the direct local browser.
                     # Pin invitations to this checkout and data, not a global CLI.
                     argv = [sys.executable, str(STATIC.parent / "relay.py"), "--data-dir", str(service.store.root)]
-                    command = subprocess.list2cmdline(argv) if os.name == "nt" else shlex.join(argv)
-                    self.respond(200, {"admin_token": service.admin_token, "cli_command": command,
+                    mcp = [sys.executable, str(STATIC.parent / "mcp_server.py"), "--data-dir", str(service.store.root), "--simple"]
+                    join = subprocess.list2cmdline if os.name == "nt" else shlex.join
+                    self.respond(200, {"admin_token": service.admin_token, "cli_command": join(argv),
+                                       "mcp_command": join(mcp), "shell": "powershell" if os.name == "nt" else "posix",
                                        "local_join": local_trusted(service.store.root)})
                     return
                 auth = self.headers.get("Authorization", "")
