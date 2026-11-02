@@ -180,9 +180,20 @@ test("member states are visible and recovery preserves the original connection",
   const text = h.get("recovery-text").value;
   assert.match(text, /name="claude"/);
   assert.match(text, /protocol_version=1/);
+  assert.match(text, /session_id="<CURRENT_SESSION_ID>"/);
+  assert.match(text, /--session-id '<CURRENT_SESSION_ID>'/);
+  assert.match(text, /替换为这条聊天原来的会话 ID/);
+  assert.match(text, /不要生成新值/);
+  assert.match(text, /不要省略后回退到旧凭据/);
   assert.match(text, /server="https:\/\/chat.example.com"/);
+  assert.match(text, /--invite=invitation/);
   assert.match(text, /不自动重复执行/);
   assert.match(text, /不确认尚未处理/);
+  h.ui.showRecovery({name: "codex", connection: "local", protocol_version: 2, state: "offline"});
+  const local = h.get("recovery-text").value;
+  assert.match(local, /chat_join\(room="work", name="codex", protocol_version=2, session_id="<CURRENT_SESSION_ID>"\)/);
+  assert.match(local, /room join work --name codex --protocol 2 --session-id '<CURRENT_SESSION_ID>'/);
+  assert.doesNotMatch(local, /--server|--invite|invite=/);
 });
 
 test("message receipts update without adding duplicate messages or closing details", async () => {
@@ -320,7 +331,11 @@ test("local room links, join and recovery instructions contain no keys", async (
   assert.doesNotMatch(h.get("invite-text").value, /invite=|--invite|internal-invite|automatic-session/);
   assert.match(h.get("invite-text").value, /session_id="<CURRENT_SESSION_ID>"/);
   h.ui.showRecovery({name: "worker", connection: "network", protocol_version: 2});
-  assert.doesNotMatch(h.get("recovery-text").value, /invite=|--invite|internal-invite|automatic-session/);
+  const recovery = h.get("recovery-text").value;
+  assert.doesNotMatch(recovery, /invite=|--invite|internal-invite|automatic-session/);
+  assert.match(recovery, /session_id="<CURRENT_SESSION_ID>"/);
+  assert.match(recovery, /--session-id '<CURRENT_SESSION_ID>'/);
+  assert.match(recovery, /替换为这条聊天原来的会话 ID/);
 });
 
 test("local connection failure offers retry instead of a key input", async () => {
