@@ -35,8 +35,10 @@ python -m unittest discover -s tests -p test_install.py -v
 The installation smoke test builds a wheel without network access, installs it
 into a temporary virtual environment, and executes the installed CLI and MCP
 server from outside the checkout. It requires `setuptools` and `wheel` in the
-test interpreter; without them, only that test is skipped. CI installs these
-build tools and exercises Windows, macOS, and Linux.
+test interpreter, and the standard-library `ensurepip` module (`python3-venv`
+on Debian/Ubuntu). If either is missing, the installed-package tests are
+skipped and the rest of the suite still runs. CI installs these build tools
+and exercises Windows, macOS, and Linux.
 
 ## Adapter contributions
 

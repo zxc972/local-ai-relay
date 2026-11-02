@@ -5,6 +5,7 @@ import os
 import shutil
 import subprocess
 import sys
+import sysconfig
 import tempfile
 import time
 import unittest
@@ -16,9 +17,16 @@ from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
 BUILD_TOOLS = all(importlib.util.find_spec(name) for name in ("pip", "setuptools", "wheel"))
+# Debian/Ubuntu's venv.EnvBuilder(with_pip=True) calls sys.exit(1) when this
+# file is missing (the python3-venv package). Skip before setUpClass so the
+# rest of `unittest discover` still runs and prints a summary.
+_STDLIB = sysconfig.get_path("stdlib")
+STDLIB_ENSUREPIP = bool(_STDLIB) and os.path.exists(
+    os.path.join(_STDLIB, "ensurepip", "__main__.py"))
 
 
 @unittest.skipUnless(BUILD_TOOLS, "Install setuptools and wheel to run installed-package checks")
+@unittest.skipUnless(STDLIB_ENSUREPIP, "Install python3-venv (ensurepip) to run installed-package checks")
 class InstalledPackageTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
