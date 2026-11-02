@@ -27,7 +27,7 @@ if __package__:
     from .chat_delivery import RULES_V2, BOUNDARY, compact_result
     from . import adapters
     from .chat_background import resolve_client, host_task, IDLE_INSTRUCTIONS, BUSY_RETRY_DELAY
-    from .chat_server import server_url
+    from .chat_server import LISTENER_STATES, server_url
     from .chatroom import ChatRoom, RULES, member_name
     from .core import RelayError, Store
     from .chat_safety import require_automatic_host, loopback_server, security_status, host_managed_action
@@ -39,7 +39,7 @@ else:
     from chat_delivery import RULES_V2, BOUNDARY, compact_result
     import adapters
     from chat_background import resolve_client, host_task, IDLE_INSTRUCTIONS, BUSY_RETRY_DELAY
-    from chat_server import server_url
+    from chat_server import LISTENER_STATES, server_url
     from chatroom import ChatRoom, RULES, member_name
     from core import RelayError, Store
     from chat_safety import require_automatic_host, loopback_server, security_status, host_managed_action
@@ -215,7 +215,13 @@ class RemoteChat:
                 result["preflight"] = preflight
         if mode == "unavailable" and not trusted:
             result["instructions"] = "已加入，当前仅手动收件。宿主工具拦截未验证，不启动自动唤醒或后台任务；本机操作只能申请后由本机用户单独批准。禁止模型轮询。"
+        self.report_listener()
         return result
+
+    def report_listener(self):
+        row = self.row()
+        if row["state"] in LISTENER_STATES and not self.occupied(row):
+            self.call("listener", {"state": row["state"]})
 
     def send(self, content, to=None, reply_to=None, key=None, delivery_id=None, notify=None, ack_ids=None):
         key = key or uuid.uuid4().hex

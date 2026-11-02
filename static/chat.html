@@ -57,7 +57,7 @@
         <div class="invite-options"><div><label for="invite-role">分工</label><select id="invite-role"><option value="member">普通成员</option><option value="guide">指导者 · 安排和检查工作</option><option value="worker">执行者 · 动手完成任务</option></select></div><div><label for="invite-name">昵称</label><input id="invite-name" value="agent" maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9_.-]{0,63}" autocomplete="off"></div></div>
         <p id="invite-hint" class="small">加入后等待你的任务。</p></li>
       <li><strong>复制加入指令</strong><button id="copy-instruction" class="primary wide">复制加入指令</button></li>
-      <li><strong>粘贴到 Agent 的对话里发送</strong><p class="small">Claude、Codex 等已有对话都可以。它出现在成员栏、显示「等待消息」就接通了。</p></li>
+      <li><strong>粘贴到 Agent 的对话里发送</strong><p class="small">Claude、Codex 等已有对话都可以。它出现在成员栏后，若显示「待启动监听」或「自动收件未接通」，点「恢复」；只有「等待消息」表示正在监听。</p></li>
     </ol>
     <details id="invite-details" class="invite-more"><summary>查看指令内容</summary><textarea id="invite-text" rows="9" readonly aria-label="Agent 加入指令"></textarea></details>
     <details id="mcp-details" class="invite-more" hidden><summary>让 Agent 以后直接用工具接入（可选）</summary><p class="small">在终端运行一次对应命令，之后新开的对话就有 chat_join 等工具；不运行也能用上面的指令加入。</p><textarea id="mcp-text" rows="6" readonly aria-label="MCP 接入命令"></textarea><button id="copy-mcp" class="secondary">复制命令</button></details>

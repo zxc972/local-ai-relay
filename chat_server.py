@@ -35,6 +35,8 @@ STATIC = Path(__file__).resolve().parent / "static"
 DEFAULT_PORT = 8789
 HISTORY_BYTE_LIMIT = 1_000_000
 COLLABORATION_VISIBLE = "(recipient IS NULL OR (sender_kind='agent' AND recipient_kind='agent'))"
+# Reported by the client after join. These are not heartbeats and must not be able to claim "waiting".
+LISTENER_STATES = ("needs_background_task", "needs_adapter", "idle", "manual_only")
 
 
 def server_url(value):
@@ -123,7 +125,12 @@ class ChatService:
             row = db.execute("SELECT name FROM chat_members WHERE owner=? AND active=1", (owner,)).fetchone()
             if not row:
                 raise RelayError("成员凭据失效或已离开，请重新加入", 401)
-            if state:
+            if state in LISTENER_STATES:
+                # Not listening yet: drop any stale watch window so the page cannot show 等待消息.
+                db.execute("INSERT INTO chat_network_seen(name,seen,state,watching_until) VALUES(?,?,?,0) "
+                           "ON CONFLICT(name) DO UPDATE SET seen=excluded.seen,state=excluded.state,watching_until=0",
+                           (row["name"], time.time(), state))
+            elif state:
                 db.execute("INSERT INTO chat_network_seen(name,seen,state) VALUES(?,?,?) ON CONFLICT(name) DO UPDATE SET "
                            "seen=excluded.seen,state=excluded.state", (row["name"], time.time(), state))
         return row["name"], owner
@@ -144,8 +151,10 @@ class ChatService:
             if network and not member.get("executor_reported"):
                 last = seen.get(member["name"])
                 online = bool(last and last["seen"] > time.time() - 45)
+                # Readiness (待启动监听 / 自动收件未接通 / 尚未监听) has no watcher to refresh `seen`.
+                retained = bool(last and chat.trusted_local() and last["state"] in LISTENER_STATES)
                 listening = bool(chat.trusted_local() and online and (last["watching_until"] or 0) > time.time())
-                state = (last["state"] if online else "offline") if chat.trusted_local() else "manual_only"
+                state = (last["state"] if online or retained else "offline") if chat.trusted_local() else "manual_only"
                 if online and last["state"] == "viewing":
                     state = "viewing"
                 if online and identity["pending_seq"] is not None and last["state"] not in ("recovery_wait", "recovering", "needs_attention"):
@@ -368,7 +377,8 @@ class ChatService:
             allowed = {"send": {"content", "to", "reply_to", "key", "delivery_id", "notify", "ack_ids"}, "receive": set(),
                        "ack": {"message_id", "message_ids", "delivery_id"}, "contextinfo": set(),
                        "context": {"message_id", "delivery_id", "offset", "after_seq", "budget"}, "sources": {"message_ids"},
-                       "review": set(), "leave": set(), "peek": {"after_id", "wait", "recovery_state"}, "workerstatus": {"state"}}
+                       "review": set(), "leave": set(), "peek": {"after_id", "wait", "recovery_state"},
+                       "workerstatus": {"state"}, "listener": {"state"}}
             if action not in allowed or set(data) - allowed[action]:
                 raise RelayError("接口或参数无效", 400)
             required = {"send": "content", "sources": "message_ids"}.get(action)
@@ -378,6 +388,11 @@ class ChatService:
                 return self.peek(chat, name, owner, data.get("after_id"), data.get("wait", 20), data.get("recovery_state"))
             if action == "workerstatus":
                 return chat.workerstatus(name, owner, **data)
+            if action == "listener":
+                if data.get("state") not in LISTENER_STATES:
+                    raise RelayError("无效监听状态")
+                self.identity(chat, token, data["state"])
+                return {"status": "recorded"}
             if action == "contextinfo":
                 return chat.context_info(name, owner)
             if action == "context":

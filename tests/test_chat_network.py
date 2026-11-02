@@ -539,6 +539,45 @@ class NetworkTests(unittest.TestCase):
         self.assertFalse(b.join(wake_config=config)["listening"])
         self.assertFalse(b.join(client="manual")["listening"])
 
+    def member_state(self, name):
+        packet = request(self.url, "/api/rooms/work/state", self.admin, {})
+        return next(member for member in packet["members"] if member["name"] == name)
+
+    def test_loopback_http_state_reports_listener_readiness(self):
+        page = (ROOT / "static" / "chat.html").read_text(encoding="utf-8")
+        self.assertIn("待启动监听", page)
+        self.assertIn("自动收件未接通", page)
+        self.assertIn("只有「等待消息」表示正在监听", page)
+        self.assertNotIn("显示「等待消息」就接通了", page)
+        claude = RemoteChat(self.root / "client-claude", self.url, "work", "claude")
+        self.clients.append(claude)
+        joined = claude.join(self.invite, client="background-task", protocol_version=2)
+        self.assertEqual(joined["background"]["state"], "needs_background_task")
+        self.assertFalse(joined["listening"])
+        visible = self.member_state("claude")
+        self.assertEqual(visible["state"], "needs_background_task")
+        self.assertFalse(visible["listening"])
+        with patch.dict(os.environ, {"CODEX_THREAD_ID": "", "CLAUDECODE": "", "CLAUDE_CODE_ENTRYPOINT": ""}):
+            codex = RemoteChat(self.root / "client-codex", self.url, "work", "codex")
+            self.clients.append(codex)
+            adapted = codex.join(self.invite, client="codex", protocol_version=2)
+        self.assertEqual(adapted["background"]["state"], "needs_adapter")
+        self.assertEqual(self.member_state("codex")["state"], "needs_adapter")
+        scribe = RemoteChat(self.root / "client-scribe", self.url, "work", "scribe")
+        self.clients.append(scribe)
+        scribe.join(self.invite, client="manual", protocol_version=2)
+        self.assertEqual(self.member_state("scribe")["state"], "idle")
+        for forged in ("waiting", "joined"):
+            with self.assertRaises(RelayError):
+                claude.call("listener", {"state": forged})
+        self.assertEqual(self.member_state("claude")["state"], "needs_background_task")
+        with self.chat.store.transaction() as db:
+            db.execute("UPDATE chat_network_seen SET seen=? WHERE name=?", (time.time() - 120, "claude"))
+        self.assertEqual(self.member_state("claude")["state"], "needs_background_task")
+        process = subprocess.Popen(claude.argv("watch"), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        self.processes.append(process)
+        self.eventually(lambda: self.member_state("claude")["state"] == "waiting")
+        self.assertTrue(self.member_state("claude")["listening"])
 
 
 if __name__ == "__main__":
