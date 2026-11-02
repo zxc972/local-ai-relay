@@ -19,5 +19,6 @@
 .invite-steps strong{display:block;font-size:13px;font-weight:600;line-height:22px}
 .invite-steps .wide{margin-top:10px}
 .invite-steps p{margin:6px 0 0}
+#invite-host-field{grid-column:1 / -1}
 .invite-more textarea{margin-top:12px}
 .invite-more>.secondary{margin-top:10px}

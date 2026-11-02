@@ -226,6 +226,42 @@ test("unverified host clearly offers manual reception without a background task"
   assert.doesNotMatch(h.get("invite-text").value, /run_in_background/);
 });
 
+test("trusted invitations name the selected host in the join command", async () => {
+  const h = await browser({handle: call => call.path.endsWith("/state") ? {
+    room: "work", members: [], security: {policy: "trusted-local"}, member_count: 0, max_members: 8,
+  } : undefined});
+  h.get("invite").onclick();
+  assert.equal(h.get("invite-host-field").hidden, false);
+  const text = () => h.get("invite-text").value;
+  assert.match(text(), /client="background-task"/);
+  assert.match(text(), /--client background-task/);
+  assert.doesNotMatch(text(), /thread_id=|--thread-id/);
+  assert.match(text(), /按返回的 background_task 启动一次/);
+  h.get("invite-host").value = "codex"; h.get("invite-host").onchange();
+  assert.match(text(), /client="codex", thread_id="<CURRENT_SESSION_ID>"/);
+  assert.match(text(), /session_id="<CURRENT_SESSION_ID>"/);
+  assert.match(text(), /--client codex --thread-id '<CURRENT_SESSION_ID>'/);
+  assert.match(text(), /session_id 与 thread_id 必须相同/);
+  assert.doesNotMatch(text(), /background-task|client="manual"/);
+  h.get("invite-host").value = "manual"; h.get("invite-host").onchange();
+  assert.match(text(), /client="manual"/);
+  assert.match(text(), /--client manual/);
+  assert.match(text(), /这次选择手动收件/);
+  assert.doesNotMatch(text(), /thread_id=|--thread-id|background-task/);
+});
+
+test("protected rooms keep a manual join and hide the host choice", async () => {
+  const h = await browser({handle: call => call.path.endsWith("/state") ? {
+    room: "work", members: [], security: {policy: "chat-only"}, member_count: 0, max_members: 8,
+  } : undefined});
+  h.get("invite").onclick();
+  assert.equal(h.get("invite-host-field").hidden, true);
+  assert.match(h.get("invite-text").value, /client="manual"/);
+  assert.match(h.get("invite-text").value, /--client manual/);
+  assert.match(h.get("invite-text").value, /当前默认仅聊天、手动收件/);
+  assert.doesNotMatch(h.get("invite-text").value, /background-task|thread_id=|--thread-id|run_in_background/);
+});
+
 test("trusted local invitations and recovery use existing host permissions", async () => {
   const h = await browser({handle: call => call.path.endsWith("/state") ? {
     room: "work", members: [{name: "claude", state: "needs_background_task", listening: false, protocol_version: 2, connection: "network"}],

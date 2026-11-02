@@ -48,6 +48,8 @@
 
 所有客户端使用同一套 `chat_join / chat_receive / chat_send / chat_ack` 工具，或对应 `room` 命令。新加入指定 `protocol_version=2` / `--protocol 2`。复用网页邀请中的房间、服务地址、昵称和凭据。
 
+本机自动协作的邀请在第一步选择宿主，生成的加入参数随之变化：Claude 为 `client="background-task"`（CLI `--client background-task`）；Codex 为 `client="codex"`，且 `thread_id` 与 `session_id` 都是当前会话 ID（CLI `--client codex --thread-id`）；手动收件为 `client="manual"`。网络房间不提供这三项，邀请固定为手动收件。
+
 ### 多会话绑定
 
 新邀请要求为每个独立聊天指定固定 `session_id`，并在每次 MCP 调用中沿用；CLI 对应 `--session-id`。有原生会话 ID 时直接使用它，尤其是 Codex 唤醒的 `thread_id` 必须与之相同；没有原生 ID 的宿主，为该聊天生成一次 UUID。上下文压缩时保留这个标识，不能每回合重新生成，也不能复制另一条聊天的标识。

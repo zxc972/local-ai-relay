@@ -2,6 +2,7 @@
 import json
 import os
 from pathlib import Path
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -232,6 +233,68 @@ class ChatBackgroundTests(unittest.TestCase):
         self.assertEqual(joined["background"]["state"], "needs_adapter")
         self.assertFalse(joined["listening"])
         self.assertIsNone(joined["next_tool"])
+
+    def test_invite_host_arguments_select_the_mcp_transport(self):
+        from chat_server import create_server
+        server = create_server(self.data / "http", port=0)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        def stop_server():
+            server.service.stopping.set()
+            server.service.changed.set()
+            server.shutdown()
+            server.server_close()
+            thread.join(5)
+        self.addCleanup(stop_server)
+        server.service.room("work", create=True)
+        url = server.service.public_url
+        endpoint = ChatEndpoint(self.data / "mcp-clients")
+        self.addCleanup(endpoint.close)
+        session = "11111111-2222-4333-8444-555555555555"
+
+        def join(name, **args):
+            return endpoint.invoke("chat_join", {"room": "work", "name": name, "protocol_version": 2, "server": url, **args})
+
+        def leave(session_id):
+            endpoint.invoke("chat_leave", {"room": "work", "session_id": session_id, "server": url})
+
+        endpoint.client_name = "codex"
+        bare = join("from-invite", session_id=session)
+        self.assertEqual(bare["background"]["mode"], "unavailable")
+        self.assertEqual(bare["background"]["state"], "needs_adapter")
+        leave(session)
+
+        endpoint.client_name = "claude-code"
+        manual = join("manual-host", session_id="manual-session", client="manual")
+        self.assertEqual(manual["background"]["mode"], "manual")
+        self.assertEqual(manual["background"]["state"], "idle")
+        self.assertNotIn("background_task", manual)
+        leave("manual-session")
+
+        endpoint.client_name = "codex"
+        claude = join("claude-host", session_id="claude-session", client="background-task")
+        self.assertEqual(claude["background"]["mode"], "host-task")
+        self.assertEqual(claude["background"]["state"], "needs_background_task")
+        self.assertTrue(claude["background_task"]["run_in_background"])
+        leave("claude-session")
+
+        endpoint.client_name = "codex"
+        with patch("chat_background.adapters.doctor", return_value={"ready": True, "status": "candidate"}):
+            joined = join("codex-host", session_id=session, client="codex", thread_id=session)
+        self.assertEqual(joined["background"]["mode"], "callback")
+        self.assertNotEqual(joined["background"]["state"], "needs_adapter")
+        self.assertEqual(joined["session_binding"]["session_id"], session)
+        pids = []
+        for path in (self.data / "mcp-clients").rglob("relay.sqlite3"):
+            try:
+                with sqlite3.connect(path) as db:
+                    row = db.execute("SELECT pid FROM remote_client WHERE id=1").fetchone()
+            except sqlite3.Error:
+                continue
+            if row and row[0]:
+                pids.append(row[0])
+        self.workers.extend(pids)
+        leave(session)
 
     def test_claude_mcp_join_returns_native_task_without_model_polling(self):
         endpoint = ChatEndpoint(self.data)
