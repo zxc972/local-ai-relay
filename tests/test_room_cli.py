@@ -1,9 +1,11 @@
 import json
+import io
 import os
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -11,6 +13,7 @@ sys.path.insert(0, str(ROOT))
 
 from core import RelayError
 from room_cli import ENTRY, Room, install_cli
+from relay import dump
 from test_support import command_arguments
 
 THREAD_A = "12345678-1234-1234-1234-123456789abc"
@@ -18,6 +21,21 @@ THREAD_B = "12345678-1234-1234-1234-123456789def"
 
 
 class RoomCLITests(unittest.TestCase):
+    def test_terminal_and_pipe_preserve_message_and_receipt_fields(self):
+        packet = {"messages": [{"id": "m-1", "content": '中文 "引用"\n第二行\\路径',
+                                "complete": False}], "delivery_id": "b-1",
+                  "next_offset": 2048, "pending": True, "error": None}
+        outputs = []
+        for interactive in (False, True):
+            stream = io.StringIO()
+            with patch("sys.stdout", stream), patch.object(stream, "isatty", return_value=interactive):
+                dump(packet)
+            rendered = stream.getvalue()
+            self.assertEqual(json.loads(rendered), packet)
+            outputs.append(rendered)
+        self.assertEqual(len(outputs[0].splitlines()), 1)
+        self.assertGreater(len(outputs[1].splitlines()), 1)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="airelay space ")
         self.data = Path(self.temp.name) / "消息 data"

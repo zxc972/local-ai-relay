@@ -6,17 +6,13 @@ import threading
 if __package__:
     from .core import RelayError
     from .message_bus import INSTRUCTIONS, Mailbox
+    from .mcp_schema import ROOM, TEXT, schema
 else:
     from core import RelayError
     from message_bus import INSTRUCTIONS, Mailbox
+    from mcp_schema import ROOM, TEXT, schema
 
 
-def schema(properties, required):
-    return {"type": "object", "properties": properties, "required": required, "additionalProperties": False}
-
-
-TEXT = {"type": "string", "minLength": 1, "maxLength": 100000}
-ROOM = {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,47}$", "maxLength": 48}
 ROLE = {"type": "string", "enum": ["sender", "receiver"]}
 ENDPOINT = {"room": ROOM, "role": ROLE}
 TOOLS = [

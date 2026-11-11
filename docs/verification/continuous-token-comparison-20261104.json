@@ -1,0 +1,466 @@
+{
+  "date": "2026-11-04",
+  "design": "one independent session per arm, three sequential cumulative tasks; single sequence, not repeated trials",
+  "model": "gpt-6.1-terra",
+  "effort": "max",
+  "client_version": "0.166.0-alpha.5.1",
+  "settings": {
+    "apps": false,
+    "plugins": false,
+    "remote_plugin": false,
+    "ignore_user_config": true,
+    "sandbox": "workspace-write",
+    "network_access": true,
+    "approval_policy": "never"
+  },
+  "accounting": "CLI resume returns cumulative usage; each phase is differenced once; input includes cached input; output includes reasoning",
+  "arms": {
+    "direct": {
+      "session_id": "01a1a545-7bfe-7fe3-85c7-ac5bc0629725",
+      "source_sha256": {
+        "static/chat.js": "b6f55e6dc733e95dee7d097cd3a5c2bc4237f0ff9a2f7b0da51e8d02cf2db6b1",
+        "chat_delivery.py": "88074af9a538ad1c75fda1a06282d33f2c26030716f0fa9b9b97f0b36cc223cb",
+        "relay.py": "d0f19f1f9aad5f23f16df9c0c0aebb24acaee411bb36d2f6a468acc2cd54e176",
+        "chatroom_mcp.py": "2b2a93c9fa9a2aa4061119073e4242be1b88895a8d1fdfc185628859e62463c7"
+      },
+      "total": {
+        "input_tokens": 262960,
+        "cached_input_tokens": 255616,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 2775,
+        "reasoning_output_tokens": 896,
+        "total_tokens": 265735,
+        "uncached_input_tokens": 7344
+      },
+      "phases": {
+        "task-1": {
+          "input_tokens": 78540,
+          "cached_input_tokens": 74624,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1082,
+          "reasoning_output_tokens": 277,
+          "total_tokens": 79622,
+          "uncached_input_tokens": 3916,
+          "seconds": 109.34,
+          "model_requests": 5,
+          "command_tool_calls": 6,
+          "failed_commands": 1,
+          "relay_commands": {},
+          "relay_stdout_utf8_bytes": 0
+        },
+        "task-2": {
+          "input_tokens": 87998,
+          "cached_input_tokens": 86016,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 854,
+          "reasoning_output_tokens": 289,
+          "total_tokens": 88852,
+          "uncached_input_tokens": 1982,
+          "seconds": 67.65,
+          "model_requests": 5,
+          "command_tool_calls": 5,
+          "failed_commands": 0,
+          "relay_commands": {},
+          "relay_stdout_utf8_bytes": 0
+        },
+        "task-3": {
+          "input_tokens": 96422,
+          "cached_input_tokens": 94976,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 839,
+          "reasoning_output_tokens": 330,
+          "total_tokens": 97261,
+          "uncached_input_tokens": 1446,
+          "seconds": 83.22,
+          "model_requests": 5,
+          "command_tool_calls": 4,
+          "failed_commands": 0,
+          "relay_commands": {},
+          "relay_stdout_utf8_bytes": 0
+        }
+      },
+      "idle": [],
+      "task_verification": [
+        {
+          "passed": true,
+          "tests": 7,
+          "result": "----------------------------------------------------------------------\nRan 7 tests in 0.000s\n\nOK\n"
+        },
+        {
+          "passed": true,
+          "tests": 14,
+          "result": "----------------------------------------------------------------------\nRan 14 tests in 0.000s\n\nOK\n"
+        },
+        {
+          "passed": true,
+          "tests": 21,
+          "result": "----------------------------------------------------------------------\nRan 21 tests in 0.000s\n\nOK\n"
+        }
+      ],
+      "replies_verified": false,
+      "session_reused": true,
+      "model_requests": 15,
+      "relay_commands": {}
+    },
+    "before": {
+      "session_id": "01a1a549-de89-7750-9e4b-a9e03a7a5c13",
+      "source_sha256": {
+        "static/chat.js": "b6f55e6dc733e95dee7d097cd3a5c2bc4237f0ff9a2f7b0da51e8d02cf2db6b1",
+        "chat_delivery.py": "88074af9a538ad1c75fda1a06282d33f2c26030716f0fa9b9b97f0b36cc223cb",
+        "relay.py": "d0f19f1f9aad5f23f16df9c0c0aebb24acaee411bb36d2f6a468acc2cd54e176",
+        "chatroom_mcp.py": "2b2a93c9fa9a2aa4061119073e4242be1b88895a8d1fdfc185628859e62463c7"
+      },
+      "total": {
+        "input_tokens": 424392,
+        "cached_input_tokens": 400896,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 4724,
+        "reasoning_output_tokens": 1530,
+        "total_tokens": 429116,
+        "uncached_input_tokens": 23496
+      },
+      "phases": {
+        "join": {
+          "input_tokens": 31320,
+          "cached_input_tokens": 27392,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 396,
+          "reasoning_output_tokens": 121,
+          "total_tokens": 31716,
+          "uncached_input_tokens": 3928,
+          "seconds": 84.984,
+          "model_requests": 2,
+          "command_tool_calls": 1,
+          "failed_commands": 0,
+          "relay_commands": {
+            "join": 1
+          },
+          "relay_stdout_utf8_bytes": 2473
+        },
+        "task-1": {
+          "input_tokens": 126769,
+          "cached_input_tokens": 113152,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2065,
+          "reasoning_output_tokens": 932,
+          "total_tokens": 128834,
+          "uncached_input_tokens": 13617,
+          "seconds": 97.136,
+          "model_requests": 7,
+          "command_tool_calls": 8,
+          "failed_commands": 1,
+          "relay_commands": {
+            "receive": 1,
+            "send-help": 1,
+            "send": 1
+          },
+          "relay_stdout_utf8_bytes": 2590
+        },
+        "task-2": {
+          "input_tokens": 126504,
+          "cached_input_tokens": 122240,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1282,
+          "reasoning_output_tokens": 350,
+          "total_tokens": 127786,
+          "uncached_input_tokens": 4264,
+          "seconds": 81.85,
+          "model_requests": 6,
+          "command_tool_calls": 5,
+          "failed_commands": 0,
+          "relay_commands": {
+            "receive": 1,
+            "send": 1
+          },
+          "relay_stdout_utf8_bytes": 1520
+        },
+        "task-3": {
+          "input_tokens": 139799,
+          "cached_input_tokens": 138112,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 981,
+          "reasoning_output_tokens": 127,
+          "total_tokens": 140780,
+          "uncached_input_tokens": 1687,
+          "seconds": 80.493,
+          "model_requests": 6,
+          "command_tool_calls": 4,
+          "failed_commands": 0,
+          "relay_commands": {
+            "receive": 1,
+            "send": 1
+          },
+          "relay_stdout_utf8_bytes": 1488
+        }
+      },
+      "idle": [
+        {
+          "seconds": 15,
+          "new_model_turns": 0,
+          "tokens": 0
+        },
+        {
+          "seconds": 15,
+          "new_model_turns": 0,
+          "tokens": 0
+        },
+        {
+          "seconds": 15,
+          "new_model_turns": 0,
+          "tokens": 0
+        }
+      ],
+      "task_verification": [
+        {
+          "passed": true,
+          "tests": 7,
+          "result": "----------------------------------------------------------------------\nRan 7 tests in 0.000s\n\nOK\n"
+        },
+        {
+          "passed": true,
+          "tests": 14,
+          "result": "----------------------------------------------------------------------\nRan 14 tests in 0.000s\n\nOK\n"
+        },
+        {
+          "passed": true,
+          "tests": 21,
+          "result": "----------------------------------------------------------------------\nRan 21 tests in 0.000s\n\nOK\n"
+        }
+      ],
+      "replies_verified": true,
+      "session_reused": true,
+      "model_requests": 21,
+      "relay_commands": {
+        "join": 1,
+        "receive": 3,
+        "send-help": 1,
+        "send": 3
+      }
+    },
+    "after": {
+      "session_id": "01a1a550-4a64-7071-8998-4c7c5956682a",
+      "source_sha256": {
+        "static/chat.js": "04fc45eb476c37b9e4e30af9d07796cb8478995e9aee8e7ab1fae33c43e62e58",
+        "chat_delivery.py": "575035423fba759b8e8619c8bc4e9b5a0ff9b315720bc1d69089ae6bcb37df17",
+        "relay.py": "903db4af7a4fe5a9cfd2500df6eaa2ec1d6e91ca7b4bbacb7511f6f4e433ad85",
+        "chatroom_mcp.py": "2b2a93c9fa9a2aa4061119073e4242be1b88895a8d1fdfc185628859e62463c7"
+      },
+      "total": {
+        "input_tokens": 414409,
+        "cached_input_tokens": 391680,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 5608,
+        "reasoning_output_tokens": 2368,
+        "total_tokens": 420017,
+        "uncached_input_tokens": 22729
+      },
+      "phases": {
+        "join": {
+          "input_tokens": 30951,
+          "cached_input_tokens": 27264,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 604,
+          "reasoning_output_tokens": 293,
+          "total_tokens": 31555,
+          "uncached_input_tokens": 3687,
+          "seconds": 66.452,
+          "model_requests": 2,
+          "command_tool_calls": 1,
+          "failed_commands": 0,
+          "relay_commands": {
+            "join": 1
+          },
+          "relay_stdout_utf8_bytes": 2098
+        },
+        "task-1": {
+          "input_tokens": 108101,
+          "cached_input_tokens": 100480,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2513,
+          "reasoning_output_tokens": 1462,
+          "total_tokens": 110614,
+          "uncached_input_tokens": 7621,
+          "seconds": 105.171,
+          "model_requests": 6,
+          "command_tool_calls": 8,
+          "failed_commands": 1,
+          "relay_commands": {
+            "receive": 1,
+            "send": 1
+          },
+          "relay_stdout_utf8_bytes": 1274
+        },
+        "task-2": {
+          "input_tokens": 129629,
+          "cached_input_tokens": 123008,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1397,
+          "reasoning_output_tokens": 465,
+          "total_tokens": 131026,
+          "uncached_input_tokens": 6621,
+          "seconds": 75.41,
+          "model_requests": 6,
+          "command_tool_calls": 6,
+          "failed_commands": 0,
+          "relay_commands": {
+            "receive": 1,
+            "send": 1
+          },
+          "relay_stdout_utf8_bytes": 1317
+        },
+        "task-3": {
+          "input_tokens": 145728,
+          "cached_input_tokens": 140928,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1094,
+          "reasoning_output_tokens": 148,
+          "total_tokens": 146822,
+          "uncached_input_tokens": 4800,
+          "seconds": 70.034,
+          "model_requests": 6,
+          "command_tool_calls": 6,
+          "failed_commands": 0,
+          "relay_commands": {
+            "receive": 1,
+            "send": 1
+          },
+          "relay_stdout_utf8_bytes": 1284
+        }
+      },
+      "idle": [
+        {
+          "seconds": 15,
+          "new_model_turns": 0,
+          "tokens": 0
+        },
+        {
+          "seconds": 15,
+          "new_model_turns": 0,
+          "tokens": 0
+        },
+        {
+          "seconds": 15,
+          "new_model_turns": 0,
+          "tokens": 0
+        }
+      ],
+      "task_verification": [
+        {
+          "passed": true,
+          "tests": 7,
+          "result": "----------------------------------------------------------------------\nRan 7 tests in 0.000s\n\nOK\n"
+        },
+        {
+          "passed": true,
+          "tests": 14,
+          "result": "----------------------------------------------------------------------\nRan 14 tests in 0.000s\n\nOK\n"
+        },
+        {
+          "passed": true,
+          "tests": 21,
+          "result": "----------------------------------------------------------------------\nRan 21 tests in 0.000s\n\nOK\n"
+        }
+      ],
+      "replies_verified": true,
+      "session_reused": true,
+      "model_requests": 20,
+      "relay_commands": {
+        "join": 1,
+        "receive": 3,
+        "send": 3
+      }
+    }
+  },
+  "comparison": {
+    "saved_total_tokens": 9099,
+    "saved_total_percent": 2.1204056711938035,
+    "before_over_direct_ratio": 1.6148268011364706,
+    "after_over_direct_ratio": 1.5805859220652154,
+    "extra_over_direct_before": 163381,
+    "extra_over_direct_after": 154282,
+    "saved_uncached_input_tokens": 767,
+    "saved_output_tokens": -884
+  },
+  "payload_measurements_not_tokens": {
+    "prompt-sizes": {
+      "before": {
+        "guide": {
+          "chars": 604,
+          "utf8_bytes": 1700
+        },
+        "worker": {
+          "chars": 476,
+          "utf8_bytes": 1336
+        },
+        "rules_v2": {
+          "chars": 562,
+          "utf8_bytes": 1236
+        }
+      },
+      "after": {
+        "guide": {
+          "chars": 234,
+          "utf8_bytes": 664
+        },
+        "worker": {
+          "chars": 194,
+          "utf8_bytes": 546
+        },
+        "rules_v2": {
+          "chars": 504,
+          "utf8_bytes": 1032
+        }
+      }
+    },
+    "invite-sizes": {
+      "before": {
+        "member": {
+          "chars": 978,
+          "utf8_bytes": 1738
+        },
+        "guide": {
+          "chars": 1562,
+          "utf8_bytes": 3378
+        },
+        "worker": {
+          "chars": 1437,
+          "utf8_bytes": 3017
+        }
+      },
+      "after": {
+        "member": {
+          "chars": 966,
+          "utf8_bytes": 1576
+        },
+        "guide": {
+          "chars": 1180,
+          "utf8_bytes": 2180
+        },
+        "worker": {
+          "chars": 1143,
+          "utf8_bytes": 2065
+        }
+      }
+    },
+    "serialization-sizes": {
+      "fixture": "actual before join result, same fields and content",
+      "before_utf8_bytes": 2473,
+      "compact_utf8_bytes": 2302,
+      "parsed_equal": true
+    }
+  },
+  "limitations": [
+    "Single sequence per arm; stochastic tools/reasoning and shared-cache warming are uncontrolled.",
+    "Real CLI command adapter; host resumes existing session on event. Not a desktop native wake test.",
+    "Uses shipped Executor role plus fixed CLI join harness; not full invitation discovery or MCP model trial.",
+    "No guidance-model usage included; benchmark main chat and regression tests excluded.",
+    "Earlier single-task experiment used different client settings; do not compare as before/after.",
+    "macOS only; billing and subscription quota not measured."
+  ],
+  "verification": {
+    "python_tests": 272,
+    "javascript_tests": 43,
+    "all_passed": true,
+    "live_service_restarted": false
+  }
+}

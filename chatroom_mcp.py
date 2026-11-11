@@ -13,7 +13,7 @@ if __package__:
     from .chatroom import ChatRoom, RULES
     from .core import RelayError
     from .chat_background import CLIENTS
-    from .message_bus_mcp import ROOM, TEXT, schema
+    from .mcp_schema import ROOM, TEXT, schema
 else:
     from chat_session import session_id as validate_session, session_owner
     from chat_context import with_local_hint, validate_entries, KINDS
@@ -21,7 +21,7 @@ else:
     from chatroom import ChatRoom, RULES
     from core import RelayError
     from chat_background import CLIENTS
-    from message_bus_mcp import ROOM, TEXT, schema
+    from mcp_schema import ROOM, TEXT, schema
 
 BASE = {"room": ROOM, "session_id": {"type": "string", "maxLength": 200,
         "description": "当前独立会话的固定 ID；新接入必填并在所有调用中沿用。有原生 thread_id 时须相同，否则本会话生成一次 UUID。省略仅兼容旧接入。"}, "server": {"type": "string", "maxLength": 2048,

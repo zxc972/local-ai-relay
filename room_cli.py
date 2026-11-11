@@ -272,16 +272,18 @@ class Room:
                 "instructions": "任务已结束，停止本房间的收件循环。"}
 
 
-def add_commands(commands):
-    install = commands.add_parser("install-cli", help="安装本地 airelay 命令，无需联网")
-    install.add_argument("--bin-dir")
+def add_commands(commands, *, local_only=False):
     config = commands.add_parser("mcp-config", help="生成通用 stdio MCP 配置，保存为数据目录中的 mcp.json")
-    config.add_argument("--simple", action="store_true", help="仅提供日常聊天室工具")
-    extension = commands.add_parser("extension-path", help="显示安装包中宿主扩展的绝对路径")
-    extension.add_argument("host", choices=["pi"])
+    config.add_argument("--simple", action="store_true", default=local_only, help="仅提供日常聊天室工具")
     mcp = commands.add_parser("mcp", help="运行通用 stdio MCP 中间件，不绑定客户端或模型")
     modes = mcp.add_mutually_exclusive_group()
-    modes.add_argument("--simple", action="store_true", help="仅提供日常聊天室工具")
+    modes.add_argument("--simple", action="store_true", default=local_only, help="仅提供日常聊天室工具")
+    if local_only:
+        return
+    install = commands.add_parser("install-cli", help="安装本地 airelay 命令，无需联网")
+    install.add_argument("--bin-dir")
+    extension = commands.add_parser("extension-path", help="显示安装包中宿主扩展的绝对路径")
+    extension.add_argument("host", choices=["pi"])
     modes.add_argument("--legacy-tasks", action="store_true", help="旧任务模式，不属于安全聊天室")
     modes.add_argument("--legacy-mailbox", action="store_true", help="旧 sender/receiver 模式，不与安全聊天室混用")
     connect = commands.add_parser("connect", help="登记角色并启动已配置的后台唤醒；没有适配器时明确报告，不进行 AI 轮询")

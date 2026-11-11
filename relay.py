@@ -22,7 +22,11 @@ ROOT = Path(__file__).resolve().parent
 
 
 def dump(value):
-    print(json.dumps(value, ensure_ascii=False, indent=2))
+    # Keep terminals readable; model/tool pipes do not need formatting tokens.
+    if sys.stdout.isatty():
+        print(json.dumps(value, ensure_ascii=False, indent=2))
+    else:
+        print(json.dumps(value, ensure_ascii=False, separators=(",", ":")))
 
 
 def initialize(store, thread_id, title, interval):
@@ -132,40 +136,18 @@ def install_client(store, project_root, client="both"):
             "next_step": "在另一边客户端打开这个项目，重新加载 MCP；若客户端要求信任此项目服务器，按其正常流程启用。"}
 
 
-def main(argv=None):
-    for stream in (sys.stdin, sys.stdout, sys.stderr):
-        if hasattr(stream, "reconfigure"):
-            stream.reconfigure(encoding="utf-8")
-    parser = argparse.ArgumentParser(description="本地 AI 消息中转站")
-    parser.add_argument("--data-dir", default=str(DEFAULT_DATA))
-    commands = parser.add_subparsers(dest="command", required=True)
+def add_legacy_commands(commands):
+    """Register optional compatibility and execution commands only in full mode."""
     if __package__:
-        from .room_cli import add_commands
+        from .chat_safety import add_commands as add_safety_commands
     else:
-        from room_cli import add_commands
-    add_commands(commands)
-    if __package__:
-        from .chatroom_mcp import add_commands as add_chat_commands, run as run_chat
-    else:
-        from chatroom_mcp import add_commands as add_chat_commands, run as run_chat
-    add_chat_commands(commands)
-    if __package__:
-        from .chat_safety import add_commands as add_safety_commands, run as run_safety
-    else:
-        from chat_safety import add_commands as add_safety_commands, run as run_safety
+        from chat_safety import add_commands as add_safety_commands
     add_safety_commands(commands)
     if __package__:
-        from .chat_executor import add_commands as add_executor_commands, run as run_executor
+        from .chat_executor import add_commands as add_executor_commands
     else:
-        from chat_executor import add_commands as add_executor_commands, run as run_executor
+        from chat_executor import add_commands as add_executor_commands
     add_executor_commands(commands)
-    serve = commands.add_parser("serve", help="打开简洁 AI 聊天室；本机或网络共享，最多 8 人")
-    serve.add_argument("--host", default="127.0.0.1")
-    serve.add_argument("--port", type=int, help="默认 8789")
-    serve.add_argument("--public-url", help="其他电脑可以访问的地址，网络监听时必填")
-    serve.add_argument("--cert", help="HTTPS 证书路径")
-    serve.add_argument("--key", help="HTTPS 私钥路径")
-    serve.add_argument("--open", action="store_true")
     init = commands.add_parser("init", help="绑定当前聊天并生成接入配置")
     init.add_argument("--thread-id", default=os.environ.get("CODEX_THREAD_ID"))
     init.add_argument("--title", default="Codex 当前聊天")
@@ -201,8 +183,44 @@ def main(argv=None):
         item = task_actions.add_parser(name)
         item.add_argument("task_id")
     task_actions.add_parser("list")
+
+
+def main(argv=None, *, local_only=False):
+    for stream in (sys.stdin, sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
+    parser = argparse.ArgumentParser(
+        description="AirRelay · 最多 8 人" if local_only else "本地 AI 消息中转站",
+        allow_abbrev=not local_only,
+        epilog="高级功能可通过 python3 relay.py --help 查看。" if local_only else None)
+    parser.add_argument("--data-dir", default=str(DEFAULT_DATA),
+                        help=argparse.SUPPRESS if local_only else None)
+    commands = parser.add_subparsers(dest="command", required=True)
+    if __package__:
+        from .room_cli import add_commands
+    else:
+        from room_cli import add_commands
+    add_commands(commands, local_only=local_only)
+    if __package__:
+        from .chatroom_mcp import add_commands as add_chat_commands, run as run_chat
+    else:
+        from chatroom_mcp import add_commands as add_chat_commands, run as run_chat
+    add_chat_commands(commands)
+    serve = commands.add_parser("serve", help="打开简洁 AI 聊天室；本机或网络共享，最多 8 人")
+    serve.add_argument("--host", default="127.0.0.1")
+    serve.add_argument("--port", type=int, help="默认 8789")
+    serve.add_argument("--public-url", help="其他电脑可以访问的地址，网络监听时必填")
+    serve.add_argument("--cert", help="HTTPS 证书路径")
+    serve.add_argument("--key", help="HTTPS 私钥路径")
+    serve.add_argument("--open", action="store_true")
+    if not local_only:
+        add_legacy_commands(commands)
     args = parser.parse_args(argv)
     if args.command == "executor":
+        if __package__:
+            from .chat_executor import run as run_executor
+        else:
+            from chat_executor import run as run_executor
         dump(run_executor(args))
         return
     if args.command == "serve":
@@ -231,6 +249,10 @@ def main(argv=None):
         dump(run_chat(args))
         return
     if args.command == "safety":
+        if __package__:
+            from .chat_safety import run as run_safety
+        else:
+            from chat_safety import run as run_safety
         dump(run_safety(args))
         return
     if args.command == "mcp":
@@ -238,7 +260,8 @@ def main(argv=None):
             from .mcp_server import serve
         else:
             from mcp_server import serve
-        serve(Store(args.data_dir), legacy=args.legacy_tasks, legacy_mailbox=args.legacy_mailbox, simple=args.simple)
+        serve(Store(args.data_dir), legacy=getattr(args, "legacy_tasks", False),
+              legacy_mailbox=getattr(args, "legacy_mailbox", False), simple=args.simple)
         return
     if args.command in ("install-cli", "pair", "join", "receive", "status", "leave", "send", "ack",
                         "mcp-config", "extension-path", "connect", "listen", "disconnect", "events", "wake",

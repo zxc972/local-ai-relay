@@ -1,0 +1,391 @@
+{
+  "measurement": "Codex CLI turn.completed cumulative usage, differenced on resume; actual model calls",
+  "model": "gpt-6.1-terra",
+  "effort": "max",
+  "repetitions": 3,
+  "idle_seconds": 30.0,
+  "task": "修复当前目录 invoice.py 的 total_paid_cents(invoices)。只累计 status 为 paid 的记录，其他记录直接忽略；已付款 amount_cents 必须是非负整数，bool 不算整数，不合法时抛 ValueError；空列表返回 0。不修改测试，不安装依赖，不扩展需求。运行 python3 -m unittest -q 验证。任务结束简短报告改动、测试结果。",
+  "pairs": [
+    {
+      "number": 1,
+      "direct": {
+        "task": {
+          "exit_code": 0,
+          "seconds": 93.17,
+          "session_id": "01a1a51e-a2e3-73a0-ac33-1dc0e2f6670b",
+          "usage": {
+            "input_tokens": 80512,
+            "cached_input_tokens": 76160,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 1405,
+            "reasoning_output_tokens": 738
+          },
+          "raw_cumulative_usage": {
+            "input_tokens": 80512,
+            "cached_input_tokens": 76160,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 1405,
+            "reasoning_output_tokens": 738
+          },
+          "model_turns": 1,
+          "tool_calls": 6
+        },
+        "verification": {
+          "passed": true,
+          "tests": 7,
+          "stderr": "----------------------------------------------------------------------\nRan 7 tests in 0.000s\n\nOK\n",
+          "source_sha256": "2a0675a92321e38fc4846544811fac8cb1b2ec7902cf92dac3e656494d9db2a1"
+        }
+      },
+      "relay": {
+        "join": {
+          "exit_code": 0,
+          "seconds": 57.594,
+          "session_id": "01a1a520-0f00-7b63-9f2f-1e71e09753a1",
+          "usage": {
+            "input_tokens": 34906,
+            "cached_input_tokens": 25344,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 469,
+            "reasoning_output_tokens": 142
+          },
+          "raw_cumulative_usage": {
+            "input_tokens": 34906,
+            "cached_input_tokens": 25344,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 469,
+            "reasoning_output_tokens": 142
+          },
+          "model_turns": 1,
+          "tool_calls": 1
+        },
+        "idle": {
+          "seconds": 30.0,
+          "model_turns": 0,
+          "tokens": 0,
+          "wake_events": 0
+        },
+        "task": {
+          "exit_code": 0,
+          "seconds": 82.875,
+          "session_id": "01a1a520-0f00-7b63-9f2f-1e71e09753a1",
+          "usage": {
+            "input_tokens": 219372,
+            "cached_input_tokens": 209152,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 1887,
+            "reasoning_output_tokens": 817
+          },
+          "raw_cumulative_usage": {
+            "input_tokens": 254278,
+            "cached_input_tokens": 234496,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 2356,
+            "reasoning_output_tokens": 959
+          },
+          "model_turns": 1,
+          "tool_calls": 8
+        },
+        "verification": {
+          "passed": true,
+          "tests": 7,
+          "stderr": "----------------------------------------------------------------------\nRan 7 tests in 0.000s\n\nOK\n",
+          "source_sha256": "9be312f75de3e8bc63e2f0c90e396ce02a20d06e61e31b3e3ff9b3c1af36c406"
+        },
+        "reply": "任务（未提供独立任务 ID）｜完成｜invoice.py：仅累计 paid 的非负整数金额，拒绝 bool 和其他非法值，忽略其他状态｜验证：python3 -m unittest -q，7 项通过｜遗留：无。",
+        "reply_count": 1,
+        "acknowledged": true
+      },
+      "comparison": {
+        "direct_total_tokens": 81917,
+        "relay_total_tokens": 256634,
+        "extra_tokens": 174717,
+        "extra_percent": 213.29
+      }
+    },
+    {
+      "number": 2,
+      "relay": {
+        "join": {
+          "exit_code": 0,
+          "seconds": 51.791,
+          "session_id": "01a1a522-b216-74c3-a842-7923a9b6bed5",
+          "usage": {
+            "input_tokens": 38489,
+            "cached_input_tokens": 27648,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 358,
+            "reasoning_output_tokens": 57
+          },
+          "raw_cumulative_usage": {
+            "input_tokens": 38489,
+            "cached_input_tokens": 27648,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 358,
+            "reasoning_output_tokens": 57
+          },
+          "model_turns": 1,
+          "tool_calls": 1
+        },
+        "idle": {
+          "seconds": 30.0,
+          "model_turns": 0,
+          "tokens": 0,
+          "wake_events": 0
+        },
+        "task": {
+          "exit_code": 0,
+          "seconds": 115.778,
+          "session_id": "01a1a522-b216-74c3-a842-7923a9b6bed5",
+          "usage": {
+            "input_tokens": 292849,
+            "cached_input_tokens": 276992,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 2555,
+            "reasoning_output_tokens": 1087
+          },
+          "raw_cumulative_usage": {
+            "input_tokens": 331338,
+            "cached_input_tokens": 304640,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 2913,
+            "reasoning_output_tokens": 1144
+          },
+          "model_turns": 1,
+          "tool_calls": 10
+        },
+        "verification": {
+          "passed": true,
+          "tests": 7,
+          "stderr": "----------------------------------------------------------------------\nRan 7 tests in 0.000s\n\nOK\n",
+          "source_sha256": "2a0675a92321e38fc4846544811fac8cb1b2ec7902cf92dac3e656494d9db2a1"
+        },
+        "reply": "任务 ID：未提供（消息 3b3504a4-8411-4337-a5c7-03c7be27a7a1）｜完成｜invoice.py 仅累计 paid，校验非负整数并排除 bool，忽略其他记录。验证：python3 -m unittest -q，7 项通过；额外边界检查通过。遗留问题：无。",
+        "reply_count": 1,
+        "acknowledged": true
+      },
+      "direct": {
+        "task": {
+          "exit_code": 0,
+          "seconds": 132.402,
+          "session_id": "01a1a525-c343-7530-8fee-bac882ead363",
+          "usage": {
+            "input_tokens": 156213,
+            "cached_input_tokens": 115584,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 1401,
+            "reasoning_output_tokens": 546
+          },
+          "raw_cumulative_usage": {
+            "input_tokens": 156213,
+            "cached_input_tokens": 115584,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 1401,
+            "reasoning_output_tokens": 546
+          },
+          "model_turns": 1,
+          "tool_calls": 8
+        },
+        "verification": {
+          "passed": true,
+          "tests": 7,
+          "stderr": "----------------------------------------------------------------------\nRan 7 tests in 0.000s\n\nOK\n",
+          "source_sha256": "9be312f75de3e8bc63e2f0c90e396ce02a20d06e61e31b3e3ff9b3c1af36c406"
+        }
+      },
+      "comparison": {
+        "direct_total_tokens": 157614,
+        "relay_total_tokens": 334251,
+        "extra_tokens": 176637,
+        "extra_percent": 112.07
+      }
+    },
+    {
+      "number": 3,
+      "direct": {
+        "task": {
+          "exit_code": 0,
+          "seconds": 106.385,
+          "session_id": "01a1a527-c4b8-76b2-8024-68b42001ba91",
+          "usage": {
+            "input_tokens": 87894,
+            "cached_input_tokens": 77440,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 1414,
+            "reasoning_output_tokens": 685
+          },
+          "raw_cumulative_usage": {
+            "input_tokens": 87894,
+            "cached_input_tokens": 77440,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 1414,
+            "reasoning_output_tokens": 685
+          },
+          "model_turns": 1,
+          "tool_calls": 8
+        },
+        "verification": {
+          "passed": true,
+          "tests": 7,
+          "stderr": "----------------------------------------------------------------------\nRan 7 tests in 0.000s\n\nOK\n",
+          "source_sha256": "733bf5299f05044d0574c4a9cfc1733b715864b31ac2b4941478771ba7af9da9"
+        }
+      },
+      "relay": {
+        "join": {
+          "exit_code": 0,
+          "seconds": 36.951,
+          "session_id": "01a1a529-6452-7062-991e-51f677fe557f",
+          "usage": {
+            "input_tokens": 32235,
+            "cached_input_tokens": 24320,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 359,
+            "reasoning_output_tokens": 75
+          },
+          "raw_cumulative_usage": {
+            "input_tokens": 32235,
+            "cached_input_tokens": 24320,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 359,
+            "reasoning_output_tokens": 75
+          },
+          "model_turns": 1,
+          "tool_calls": 1
+        },
+        "idle": {
+          "seconds": 30.0,
+          "model_turns": 0,
+          "tokens": 0,
+          "wake_events": 0
+        },
+        "task": {
+          "exit_code": 0,
+          "seconds": 111.22,
+          "session_id": "01a1a529-6452-7062-991e-51f677fe557f",
+          "usage": {
+            "input_tokens": 151398,
+            "cached_input_tokens": 144768,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 2784,
+            "reasoning_output_tokens": 1253
+          },
+          "raw_cumulative_usage": {
+            "input_tokens": 183633,
+            "cached_input_tokens": 169088,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 3143,
+            "reasoning_output_tokens": 1328
+          },
+          "model_turns": 1,
+          "tool_calls": 11
+        },
+        "verification": {
+          "passed": true,
+          "tests": 7,
+          "stderr": "----------------------------------------------------------------------\nRan 7 tests in 0.000s\n\nOK\n",
+          "source_sha256": "2a0675a92321e38fc4846544811fac8cb1b2ec7902cf92dac3e656494d9db2a1"
+        },
+        "reply": "任务 ID（消息）：7f36768a-b459-4832-abab-b7a4a676a47b｜完成｜invoice.py：仅累计 paid，校验非负整数并排除 bool，忽略其他记录｜python3 -m unittest -q：7 项通过；额外边界检查通过｜遗留问题：无。",
+        "reply_count": 1,
+        "acknowledged": true
+      },
+      "comparison": {
+        "direct_total_tokens": 89308,
+        "relay_total_tokens": 186776,
+        "extra_tokens": 97468,
+        "extra_percent": 109.14
+      }
+    }
+  ],
+  "client_settings": "ignore-user-config equally in both arms; CLI transport; native client defaults",
+  "adapter": "AirRelay command callback resumes the same real Codex CLI session",
+  "source_commit": "3f4867763f0d615236fa9588fd43f15f14d07fa9",
+  "completed": true,
+  "aggregate": {
+    "totals": {
+      "direct": {
+        "input_tokens": 324619,
+        "cached_input_tokens": 269184,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 4220,
+        "reasoning_output_tokens": 1969,
+        "total_tokens": 328839,
+        "uncached_input_tokens": 55435
+      },
+      "relay_join": {
+        "input_tokens": 105630,
+        "cached_input_tokens": 77312,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1186,
+        "reasoning_output_tokens": 274,
+        "total_tokens": 106816,
+        "uncached_input_tokens": 28318
+      },
+      "relay_work": {
+        "input_tokens": 663619,
+        "cached_input_tokens": 630912,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 7226,
+        "reasoning_output_tokens": 3157,
+        "total_tokens": 670845,
+        "uncached_input_tokens": 32707
+      },
+      "relay_total": {
+        "input_tokens": 769249,
+        "cached_input_tokens": 708224,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 8412,
+        "reasoning_output_tokens": 3431,
+        "total_tokens": 777661,
+        "uncached_input_tokens": 61025
+      }
+    },
+    "means": {
+      "direct": {
+        "input_tokens": 108206.33333333333,
+        "cached_input_tokens": 89728.0,
+        "cache_write_input_tokens": 0.0,
+        "output_tokens": 1406.6666666666667,
+        "reasoning_output_tokens": 656.3333333333334,
+        "total_tokens": 109613.0,
+        "uncached_input_tokens": 18478.333333333332
+      },
+      "relay_join": {
+        "input_tokens": 35210.0,
+        "cached_input_tokens": 25770.666666666668,
+        "cache_write_input_tokens": 0.0,
+        "output_tokens": 395.3333333333333,
+        "reasoning_output_tokens": 91.33333333333333,
+        "total_tokens": 35605.333333333336,
+        "uncached_input_tokens": 9439.333333333334
+      },
+      "relay_work": {
+        "input_tokens": 221206.33333333334,
+        "cached_input_tokens": 210304.0,
+        "cache_write_input_tokens": 0.0,
+        "output_tokens": 2408.6666666666665,
+        "reasoning_output_tokens": 1052.3333333333333,
+        "total_tokens": 223615.0,
+        "uncached_input_tokens": 10902.333333333334
+      },
+      "relay_total": {
+        "input_tokens": 256416.33333333334,
+        "cached_input_tokens": 236074.66666666666,
+        "cache_write_input_tokens": 0.0,
+        "output_tokens": 2804.0,
+        "reasoning_output_tokens": 1143.6666666666667,
+        "total_tokens": 259220.33333333334,
+        "uncached_input_tokens": 20341.666666666668
+      }
+    },
+    "total_token_ratio": 2.364868522285982,
+    "mean_extra_tokens": 149607.33333333334,
+    "idle_model_turns": 0,
+    "idle_tokens": 0
+  },
+  "date": "2026-11-04",
+  "platform": "macOS arm64",
+  "cli_version": "0.166.0-alpha.5.1",
+  "benchmark_source_sha256": "2546f63486241209f470921bb0351d05e9f336b1b0e506796ba9ca1dc982c53f"
+}

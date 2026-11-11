@@ -70,6 +70,9 @@ class Peer:
         response = self.call("tools/call", {"name": tool_name, "arguments": arguments})
         if response.get("isError"):
             raise AssertionError(response)
+        # Text-only MCP clients must see exactly the same fields and content.
+        if json.loads(response["content"][0]["text"]) != response["structuredContent"]:
+            raise AssertionError("MCP text and structured results diverged")
         return response["structuredContent"]
 
     def listen(self, role):

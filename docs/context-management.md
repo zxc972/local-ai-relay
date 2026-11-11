@@ -121,4 +121,8 @@ chat_context(room="work", after_seq=0)
 
 第二轮的返回精简、原文分页和合并回复对比见[开销验证记录](verification/context-overhead-optimization.md)。只有 v2 启用这些行为；新版本服务和成员端都需更新，已有 MCP 进程需重新加载。旧客户端仍为 v1 时，不会自动升级或自动重新加入。
 
+使用真实 Codex CLI，对比直接执行和经过 AirRelay 接入、等待、收件、执行、回传的三组用量，见[真实 Agent token 对比](verification/agent-token-comparison-20261104.md)。记录单列缓存输入、空闲阶段和验收结果。
+
+接入提示词与收发说明精简后，用同一会话连续完成三项任务的前后实测见[连续任务 token 对比](verification/continuous-token-comparison-20261104.md)：本轮总量减少 2.12%，空闲没有模型调用；结果包含缓存输入，不等同于费用降幅。
+
 恢复上下文时会携带当前 security.policy / execution：本机继续沿用宿主权限，不因压缩丢失房间模式而反复请求批准；来源摘要不能修改这些字段。

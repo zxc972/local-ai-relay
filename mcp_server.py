@@ -9,16 +9,10 @@ import threading
 
 if __package__:
     from .core import DEFAULT_DATA, RelayError, Store
-    from .message_bus_mcp import INSTRUCTIONS as MAILBOX_INSTRUCTIONS, TOOLS as MAILBOX_TOOLS, Endpoint
-    from .chatroom_mcp import INSTRUCTIONS as CHAT_INSTRUCTIONS, TOOLS as CHAT_TOOLS, BY_NAME as CHAT_NAMES, ChatEndpoint, SIMPLE_TOOLS, SIMPLE_INSTRUCTIONS
+    from .mcp_schema import schema
 else:
     from core import DEFAULT_DATA, RelayError, Store
-    from message_bus_mcp import INSTRUCTIONS as MAILBOX_INSTRUCTIONS, TOOLS as MAILBOX_TOOLS, Endpoint
-    from chatroom_mcp import INSTRUCTIONS as CHAT_INSTRUCTIONS, TOOLS as CHAT_TOOLS, BY_NAME as CHAT_NAMES, ChatEndpoint, SIMPLE_TOOLS, SIMPLE_INSTRUCTIONS
-
-
-def schema(properties, required):
-    return {"type": "object", "properties": properties, "required": required, "additionalProperties": False}
+    from mcp_schema import schema
 
 
 STRING = {"type": "string", "minLength": 1}
@@ -91,10 +85,29 @@ def serve(store, source=sys.stdin, destination=sys.stdout, legacy=False, legacy_
     active_lock = threading.Lock()
     active = {}
     initialized = False
-    available_tools = TOOLS if legacy else MAILBOX_TOOLS if legacy_mailbox else SIMPLE_TOOLS if simple else CHAT_TOOLS
+    endpoint = None
+    if legacy:
+        available_tools = TOOLS
+        instructions = "本地双 AI 任务邮箱。保存 task_id，等待结果后评审。"
+        dispatch = lambda name, arguments, cancel, progress: invoke(store, name, arguments, cancel)
+    elif legacy_mailbox:
+        if __package__:
+            from .message_bus_mcp import INSTRUCTIONS, TOOLS as available_tools, Endpoint
+        else:
+            from message_bus_mcp import INSTRUCTIONS, TOOLS as available_tools, Endpoint
+        instructions = INSTRUCTIONS
+        endpoint = Endpoint(store.root)
+        dispatch = endpoint.invoke
+    else:
+        if __package__:
+            from .chatroom_mcp import INSTRUCTIONS, TOOLS as CHAT_TOOLS, ChatEndpoint, SIMPLE_TOOLS, SIMPLE_INSTRUCTIONS
+        else:
+            from chatroom_mcp import INSTRUCTIONS, TOOLS as CHAT_TOOLS, ChatEndpoint, SIMPLE_TOOLS, SIMPLE_INSTRUCTIONS
+        available_tools = SIMPLE_TOOLS if simple else CHAT_TOOLS
+        instructions = SIMPLE_INSTRUCTIONS if simple else INSTRUCTIONS
+        endpoint = ChatEndpoint(store.root)
+        dispatch = endpoint.invoke
     allowed_names = {tool["name"] for tool in available_tools}
-    mailbox_endpoint = Endpoint(store.root)
-    chat_endpoint = ChatEndpoint(store.root)
 
     def emit(message):
         with output_lock:
@@ -117,13 +130,8 @@ def serve(store, source=sys.stdin, destination=sys.stdout, legacy=False, legacy_
                     "progressToken": token, "progress": count, "message": "正在监听中转站消息"}})
             if params.get("name") not in allowed_names:
                 raise RelayError("执行前已拦截：工具不在当前聊天室白名单中", 403)
-            if legacy:
-                result = invoke(store, params.get("name"), params.get("arguments", {}), cancel)
-            elif params.get("name") in CHAT_NAMES:
-                result = chat_endpoint.invoke(params.get("name"), params.get("arguments", {}), cancel, progress)
-            else:
-                result = mailbox_endpoint.invoke(params.get("name"), params.get("arguments", {}), cancel, progress)
-            response = {"content": [{"type": "text", "text": json.dumps(result, ensure_ascii=False)}],
+            result = dispatch(params.get("name"), params.get("arguments", {}), cancel, progress)
+            response = {"content": [{"type": "text", "text": json.dumps(result, ensure_ascii=False, separators=(",", ":"))}],
                         "structuredContent": result, "isError": False}
         except (RelayError, TypeError, ValueError) as error:
             response = {"content": [{"type": "text", "text": str(error)}], "isError": True}
@@ -171,13 +179,13 @@ def serve(store, source=sys.stdin, destination=sys.stdout, legacy=False, legacy_
             if method == "initialize":
                 initialized = True
                 info = params.get("clientInfo", {})
-                chat_endpoint.client_name = str(info.get("name", "")) if isinstance(info, dict) else ""
+                if not legacy and not legacy_mailbox:
+                    endpoint.client_name = str(info.get("name", "")) if isinstance(info, dict) else ""
                 offered = request.get("params", {}).get("protocolVersion")
                 version = offered if offered in ("2024-11-05", "2025-03-26", "2025-06-18", "2025-11-25") else "2025-06-18"
                 result = {"protocolVersion": version, "capabilities": {"tools": {}},
                           "serverInfo": {"name": "local-ai-relay", "version": "0.3.0"},
-                          "instructions": ("本地双 AI 任务邮箱。保存 task_id，等待结果后评审。" if legacy else
-                                           MAILBOX_INSTRUCTIONS if legacy_mailbox else SIMPLE_INSTRUCTIONS if simple else CHAT_INSTRUCTIONS)}
+                          "instructions": instructions}
             elif not initialized:
                 emit({"jsonrpc": "2.0", "id": rid, "error": {"code": -32002, "message": "Initialize first"}})
                 continue
@@ -203,7 +211,8 @@ def serve(store, source=sys.stdin, destination=sys.stdout, legacy=False, legacy_
             for event in active.values():
                 event.set()
         pool.shutdown(wait=True, cancel_futures=True)
-        chat_endpoint.close()
+        if endpoint is not None and hasattr(endpoint, "close"):
+            endpoint.close()
 
 
 if __name__ == "__main__":
